@@ -7,8 +7,8 @@ namespace restAPI.Controllers
 {
     public class DeviceCoordinates
     {
-        public Guid Id{get;set;}
-        public string Name {get;set;}
+        public ulong EUI{get;set;}
+        public uint ID {get;set;}
         public IEnumerable<GeoCoordinate> GeoCoordinates {get;set;}
     }
 }

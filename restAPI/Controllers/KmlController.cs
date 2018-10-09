@@ -9,7 +9,7 @@ namespace restAPI.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class kmlController : ControllerBase
+    public class KmlController : ControllerBase
     {
         // GET api/klm
         [HttpGet]
@@ -18,9 +18,9 @@ namespace restAPI.Controllers
             throw new NotImplementedException();
         }
 
-        // GET api/klm/5 - specific device ID
+        // GET api/klm/52549 - specific device ID
         [HttpGet("{id}")]
-        public ActionResult<IEnumerable<GeoCoordinate>> Get(int id)
+        public ActionResult<IEnumerable<GeoCoordinate>> Get(ulong deviceEUI)
         {
             throw new NotImplementedException();
         }
