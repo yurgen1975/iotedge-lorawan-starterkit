@@ -8,8 +8,8 @@ namespace restAPI.DataContracts
 {
     [System.Serializable()]
     [System.ComponentModel.DesignerCategory("code")]
-    [XmlType(AnonymousType = true)]
-    [XmlRoot(ElementName ="kml", IsNullable = false)]
+    [XmlType(AnonymousType = true, Namespace = "http://www.opengis.net/kml/2.2")]
+    [XmlRoot(ElementName = "kml", Namespace = "http://www.opengis.net/kml/2.2", IsNullable = false)]
     public class Kml
     {
         public Kml()
@@ -27,12 +27,12 @@ namespace restAPI.DataContracts
 
         }
         [XmlElement(ElementName = "Document")]
-        public KmlDocument Document { get; }
+        public KmlDocument Document { get; set; }
     }
 
     [System.Serializable()]
     [System.ComponentModel.DesignerCategory("code")]
-    [XmlType(AnonymousType = true)]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/kml/2.2")]
     public class KmlDocument
     {
         public KmlDocument()
@@ -47,9 +47,8 @@ namespace restAPI.DataContracts
         [XmlElement(ElementName = "description")]
         public string Description { get; set; }
 
-        [XmlElement("Placemark")]
         [XmlElement(ElementName = "Placemark")]
-        public KmlDocumentPlacemark[] Placemark { get; private set; }
+        public KmlDocumentPlacemark[] Placemark { get; set; }
 
         internal void AddPlacemark(KmlDocumentPlacemark placemark)
         {
@@ -60,7 +59,7 @@ namespace restAPI.DataContracts
     /// <remarks/>
     [System.Serializable()]
     [System.ComponentModel.DesignerCategory("code")]
-    [XmlType(AnonymousType = true)]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/kml/2.2")]
     public class KmlDocumentPlacemark
     {
         public KmlDocumentPlacemark()
@@ -74,7 +73,7 @@ namespace restAPI.DataContracts
         public string Description { get; set; }
 
         [XmlElement(ElementName = "LineString")]
-        public KmlDocumentPlacemarkLineString LineString { get; internal set; }
+        public KmlDocumentPlacemarkLineString LineString { get; set; }
 
         internal void AddPoins(IEnumerable<GeoCoordinate> geoCoordinates)
         {
@@ -86,7 +85,7 @@ namespace restAPI.DataContracts
     /// <remarks/>
     [System.Serializable()]
     [System.ComponentModel.DesignerCategory("code")]
-    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true)]
+    [System.Xml.Serialization.XmlTypeAttribute(AnonymousType = true, Namespace = "http://www.opengis.net/kml/2.2")]
     public class KmlDocumentPlacemarkLineString
     {
         [XmlElement(ElementName = "coordinates")]

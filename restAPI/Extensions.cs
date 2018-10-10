@@ -9,17 +9,12 @@ namespace restAPI
         public static string ToXml(this object obj)
         {
             XmlSerializer xmlSerialiser = new XmlSerializer(obj.GetType());
-            string xml = string.Empty;
 
             using (StringWriter stringWriter = new StringWriter())
             {
-                using (XmlWriter xmlWriter = XmlWriter.Create(stringWriter))
-                {
-                    xmlSerialiser.Serialize(xmlWriter, obj);
-                    xml = stringWriter.ToString(); 
-                }
+                xmlSerialiser.Serialize(stringWriter, obj);
+                return stringWriter.ToString();
             }
-            return xml;
         }
     }
 }
