@@ -10,6 +10,6 @@ namespace DataContext.Models
         {
         }
 
-        public DbSet<DeviceCoordinates> DevicePositions { get; set; }
+        public DbSet<DeviceMapPoint> DevicePositions { get; set; }
     }
 }
