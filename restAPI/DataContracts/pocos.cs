@@ -3,8 +3,9 @@ using GeoCoordinatePortable;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
+using System.Linq;
 
-namespace DataContracts.Controllers
+namespace restAPI.DataContracts
 {
     [Table("DeviceMapPoints")]
     public class DeviceMapPoint
@@ -24,9 +25,12 @@ namespace DataContracts.Controllers
 
     public class DeviceCoordinates
     {
-        public DeviceCoordinates()
+        public DeviceCoordinates(ulong eui, uint id, IEnumerable<Tuple<double,double>> gpsTuples)
         {
             GeoCoordinates = new List<GeoCoordinate>();
+            EUI = eui;
+            ID = id;
+            GeoCoordinates = gpsTuples.Select(gps => new GeoCoordinate(gps.Item1, gps.Item2)).ToArray();
         }
         public ulong EUI { get; set; }
         public uint ID { get; set; }

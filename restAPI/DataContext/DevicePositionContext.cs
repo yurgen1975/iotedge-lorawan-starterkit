@@ -1,7 +1,7 @@
-using DataContracts.Controllers;
 using Microsoft.EntityFrameworkCore;
+using restAPI.DataContracts;
 
-namespace DataContext.Models
+namespace restAPI.DataContext.Models
 {
     public class DevicePositionContext : DbContext
     {

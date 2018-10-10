@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Mvc;
-using DataContracts.Controllers;
-using DataContext.Models;
+using restAPI.DataContext.Models;
+using restAPI.DataContracts;
 using System.Linq;
 
 namespace restAPI.Controllers
