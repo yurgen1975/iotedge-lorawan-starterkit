@@ -3,7 +3,7 @@ using GeoCoordinatePortable;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
 
-namespace restAPI.Controllers
+namespace DataContracts.Controllers
 {
     public class DeviceCoordinates
     {
