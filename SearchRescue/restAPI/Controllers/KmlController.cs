@@ -41,7 +41,7 @@ namespace restAPI.Controllers
                     {
                         var deviceMapPoints = _dataContext.DevicePositions.ToArray();
                         IEnumerable<IGrouping<ulong, DeviceMapPoint>> goupedDeviceMapPoints = deviceMapPoints.GroupBy(dmp => dmp.EUI);
-                        DeviceCoordinates[] deviceCoordinatesArray = goupedDeviceMapPoints.Select(item => new DeviceCoordinates(item.Key, 0, item.Select(gps => new Tuple<double, double>(gps.Latitude, gps.Longitute)))).ToArray();
+                        DeviceCoordinates[] deviceCoordinatesArray = goupedDeviceMapPoints.Select(item => new DeviceCoordinates(item.Key, 0, item.Select(gps => new Tuple<double, double>(gps.Latitude, gps.Longitude)))).ToArray();
 
                         Kml klm = new Kml();
                         foreach (DeviceCoordinates deviceCoordinates in deviceCoordinatesArray)
@@ -73,7 +73,7 @@ namespace restAPI.Controllers
                     if (!_cache.TryGetValue(cacheKey, out kmlFile))
                     {
                         var deviceMapPoints = _dataContext.DevicePositions.Where(dmp => dmp.EUI == deviceEUI).ToArray();
-                        DeviceCoordinates deviceCoordinates = new DeviceCoordinates(deviceEUI, 0, deviceMapPoints.Select(gps => new Tuple<double, double>(gps.Latitude, gps.Longitute)));
+                        DeviceCoordinates deviceCoordinates = new DeviceCoordinates(deviceEUI, 0, deviceMapPoints.Select(gps => new Tuple<double, double>(gps.Latitude, gps.Longitude)));
 
                         Kml klm = new Kml();
 
