@@ -36,6 +36,9 @@
             "env": {
               "OptimizeForPerformance": {
                 "value": "false"
+              },
+              "UpstreamProtocol": {
+                "value": "MQTT"
               }
             }
           }
@@ -68,6 +71,9 @@
             "env": {
               "RESET_PIN": {
                 "value": "7"
+              },
+              "REGION": {
+                "value": "US"
               }
             },
             "version": "1.0",

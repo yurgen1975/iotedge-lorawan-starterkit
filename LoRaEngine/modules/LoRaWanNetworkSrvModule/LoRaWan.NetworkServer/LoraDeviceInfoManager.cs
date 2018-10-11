@@ -10,6 +10,7 @@ using System.Net.Http;
 using System.Text;
 using System.Threading.Tasks;
 using PacketManager;
+using System.Net;
 
 namespace LoRaWan.NetworkServer
 {
@@ -35,7 +36,7 @@ namespace LoRaWan.NetworkServer
             HttpResponseMessage response = await client.GetAsync(url);
             if (!response.IsSuccessStatusCode)
             {
-               
+
                 Logger.Log(DevAddr, $"error calling façade api: {response.ReasonPhrase} check the azure function log", Logger.LoggingLevel.Error);
                 return null;
             }
@@ -47,7 +48,7 @@ namespace LoRaWan.NetworkServer
 
             LoraDeviceInfo loraDeviceInfo = new LoraDeviceInfo();
             loraDeviceInfo.DevAddr = DevAddr;
-          
+
 
             //we did not find a device with this devaddr so we assume is not ours
             if (iotHubDeviceInfos.Count == 0)
@@ -64,7 +65,7 @@ namespace LoRaWan.NetworkServer
                 loraDeviceInfo.HubSender = new IoTHubSender(iotHubDeviceInfo.DevEUI, iotHubDeviceInfo.PrimaryKey);
 
                 var twin = await loraDeviceInfo.HubSender.GetTwinAsync();
-               
+
                 //ABP Case
                 if (twin.Properties.Desired.Contains("AppSKey"))
                 {
@@ -111,14 +112,14 @@ namespace LoRaWan.NetworkServer
         /// <param name="AppEUI"></param>
         /// <param name="DevNonce"></param>
         /// <returns></returns>
-        public static async Task<LoraDeviceInfo> PerformOTAAAsync(string GatewayID, string DevEUI, string AppEUI, string DevNonce)
+        public static async Task<LoraDeviceInfo> PerformOTAAAsync(string GatewayID, string DevEUI, string AppEUI, string DevNonce, LoraDeviceInfo loraDeviceInfo)
         {
             string AppKey;
             string AppSKey;
             string NwkSKey;
             string DevAddr;
             string AppNonce;
-           
+
             if (DevEUI == null || AppEUI == null || DevNonce == null)
             {
                 string errorMsg = "Missing devEUI/AppEUI/DevNonce in the OTAARequest";
@@ -127,21 +128,43 @@ namespace LoRaWan.NetworkServer
                 return null;
             }
 
-            var client = new HttpClient();
-            var url = $"{FacadeServerUrl}GetDevice?code={FacadeAuthCode}&devEUI={DevEUI}";
-            HttpResponseMessage response = await client.GetAsync(url);
-            if (!response.IsSuccessStatusCode)
+            List<IoTHubDeviceInfo> iotHubDeviceInfos = new List<IoTHubDeviceInfo>();
+
+            if (UdpServer.internetConnectivity)
             {
-                Logger.Log(DevEUI, $"error calling façade api: {response.ReasonPhrase} check the azure function log", Logger.LoggingLevel.Error);
-                return null;
+                Logger.Log(DevEUI, "Getting IoTHubDeviceInfo from function", Logger.LoggingLevel.Info);
+                var client = new HttpClient();
+                var url = $"{FacadeServerUrl}GetDevice?code={FacadeAuthCode}&devEUI={DevEUI}";
+                HttpResponseMessage response = await client.GetAsync(url);
+                if (!response.IsSuccessStatusCode)
+                {
+                    Logger.Log(DevEUI, $"error calling façade api: {response.ReasonPhrase} check the azure function log", Logger.LoggingLevel.Error);
+                    return null;
+                }
+
+                var result = response.Content.ReadAsStringAsync().Result;
+
+                iotHubDeviceInfos = ((List<IoTHubDeviceInfo>)JsonConvert.DeserializeObject(result, typeof(List<IoTHubDeviceInfo>)));
             }
+            else
+            {
+                Logger.Log(DevEUI, "Getting IoTHubDeviceInfo from local cache", Logger.LoggingLevel.Info);
+                try
+                {
+                    ModuleTwinCache.TryGetValue(DevEUI, out IoTHubDeviceInfo iotHubDeviceInfo);
+                    iotHubDeviceInfos.Add(iotHubDeviceInfo);
+                }
+                catch (System.Exception ex)
+                {
+                    Logger.Log(DevEUI, $"{ex}", Logger.LoggingLevel.Error);
+                }
 
-            var result = response.Content.ReadAsStringAsync().Result;
+            }
+            if (loraDeviceInfo == null)
+            {
+                loraDeviceInfo = new LoraDeviceInfo();
 
-            List<IoTHubDeviceInfo> iotHubDeviceInfos = ((List<IoTHubDeviceInfo>)JsonConvert.DeserializeObject(result, typeof(List<IoTHubDeviceInfo>)));
-
-            LoraDeviceInfo loraDeviceInfo = new LoraDeviceInfo();
-
+            }
             loraDeviceInfo.DevEUI = DevEUI;
 
             //we did not find a device with this devaddr so we assume is not ours
@@ -158,8 +181,19 @@ namespace LoRaWan.NetworkServer
                 loraDeviceInfo.PrimaryKey = iotHubDeviceInfo.PrimaryKey;
 
                 loraDeviceInfo.HubSender = new IoTHubSender(loraDeviceInfo.DevEUI, loraDeviceInfo.PrimaryKey);
+                Microsoft.Azure.Devices.Shared.Twin twin;
+                if (loraDeviceInfo.CachedTwin == null)
+                {
+                    Logger.Log(DevEUI, $"Getting twin from cloud", Logger.LoggingLevel.Info);
+                    twin = await loraDeviceInfo.HubSender.GetTwinAsync();
+                    loraDeviceInfo.CachedTwin = twin;
+                }
+                else
+                {
+                    Logger.Log(DevEUI, $"Using cached twin", Logger.LoggingLevel.Info);
+                    twin = loraDeviceInfo.CachedTwin;
+                }
 
-                var twin = await loraDeviceInfo.HubSender.GetTwinAsync();
                 if (twin != null)
                 {
                     loraDeviceInfo.IsOurDevice = true;

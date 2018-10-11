@@ -39,4 +39,37 @@ namespace LoRaWan.NetworkServer
 
         }
     }
+
+    public static class ModuleTwinCache
+    {
+
+        private static IMemoryCache MemoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+
+        public static void Clear()
+        {
+            ModuleTwinCache.MemoryCache = new Microsoft.Extensions.Caching.Memory.MemoryCache(new Microsoft.Extensions.Caching.Memory.MemoryCacheOptions());
+        }
+
+
+        public static void AddToCache(string devAddr, string primaryKey)
+        {
+            using (var entry = ModuleTwinCache.MemoryCache.CreateEntry(devAddr))
+            {
+                entry.Value = primaryKey;
+                //TODO daniele : is this no sense or not?
+                entry.SlidingExpiration = new TimeSpan(1, 0, 0, 0);
+            }
+        }
+
+        public static void TryGetValue(string key, out IoTHubDeviceInfo iotHubDeviceInfo)
+        {
+            ModuleTwinCache.MemoryCache.TryGetValue(key, out string primaryKey);
+            
+            iotHubDeviceInfo = new IoTHubDeviceInfo(){
+                DevEUI = key,
+                DevAddr = null,
+                PrimaryKey = primaryKey
+            };
+        }
+    }
 }

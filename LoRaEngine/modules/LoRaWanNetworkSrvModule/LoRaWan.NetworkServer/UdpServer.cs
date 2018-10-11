@@ -6,12 +6,14 @@ using Microsoft.Azure.Devices.Client;
 using Microsoft.Azure.Devices.Client.Transport.Mqtt;
 using Microsoft.Azure.Devices.Shared;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace LoRaWan.NetworkServer
@@ -26,6 +28,8 @@ namespace LoRaWan.NetworkServer
 
         private static IPAddress remoteLoRaAggregatorIp;
         private static int remoteLoRaAggregatorPort;
+
+        public static bool internetConnectivity;
 
         public async Task RunServer()
         {
@@ -43,14 +47,11 @@ namespace LoRaWan.NetworkServer
             if (messageToSend != null && messageToSend.Length != 0)
             {
                 await udpClient.SendAsync(messageToSend, messageToSend.Length, remoteLoRaAggregatorIp.ToString(), remoteLoRaAggregatorPort);
-
             }
         }
 
         async Task RunUdpListener()
         {
-
-
             IPEndPoint endPoint = new IPEndPoint(IPAddress.Any, PORT);
             udpClient = new UdpClient(endPoint);
 
@@ -71,14 +72,11 @@ namespace LoRaWan.NetworkServer
                     remoteLoRaAggregatorPort = receivedResults.RemoteEndPoint.Port;
                 }
 
-
-
-
                 try
                 {
                     MessageProcessor messageProcessor = new MessageProcessor();
 
-                    
+
                     _ = messageProcessor.processMessage(receivedResults.Buffer);
                 }
                 catch (Exception ex)
@@ -96,7 +94,7 @@ namespace LoRaWan.NetworkServer
         {
             try
             {
-                ITransportSettings transportSettings = new AmqpTransportSettings(TransportType.Amqp_Tcp_Only);
+                ITransportSettings transportSettings = new MqttTransportSettings(TransportType.Mqtt_Tcp_Only);
 
                 ITransportSettings[] settings = { transportSettings };
 
@@ -131,10 +129,39 @@ namespace LoRaWan.NetworkServer
                     {
                         Logger.Log("Module twin FacadeAuthCode does not exist", Logger.LoggingLevel.Error);
                     }
+                    try
+                    {
+                        JObject leafDevices = moduleTwinCollection["LeafDevices"];
+                        foreach (var leaf in leafDevices)
+                        {
+                            new Thread(() =>
+                            {
+                                ModuleTwinCache.AddToCache(leaf.Key, leaf.Value.ToString());
+                                Logger.Log($"Cached {leaf.Key} from module twin", Logger.LoggingLevel.Info);
+                            }).Start();
+                        }
+                    }
+                    catch (ArgumentOutOfRangeException e)
+                    {
+                        Logger.Log("Module twin LeafDevices does not exist", Logger.LoggingLevel.Error);
+                    }
 
                     await ioTHubModuleClient.SetDesiredPropertyUpdateCallbackAsync(onDesiredPropertiesUpdate, null);
 
                     await ioTHubModuleClient.SetMethodHandlerAsync("ClearCache", ClearCache, null);
+
+                    new Thread(async () => {
+                        while (true)
+                        {
+                            var oldInternetConnectivity = internetConnectivity;
+                            await CheckInternet();
+                            if (internetConnectivity!=oldInternetConnectivity)
+                            {
+                                Logger.Log($"Connectivity status changed. Internet connectivity:{internetConnectivity}", Logger.LoggingLevel.Info);
+                            }
+                            Thread.Sleep(5000);
+                        }
+                    }){IsBackground = true}.Start();
 
 
                 }
@@ -158,6 +185,21 @@ namespace LoRaWan.NetworkServer
             }
         }
 
+        public static async Task CheckInternet()
+        {
+            try
+            {
+                using (var client = new WebClient())
+                {
+                    await client.DownloadStringTaskAsync(new Uri("http://clients3.google.com/generate_204"));
+                    internetConnectivity = true;
+                }
+            }
+            catch
+            {
+                internetConnectivity = false;
+            }
+        }
         private static async Task<MethodResponse> ClearCache(MethodRequest methodRequest, object userContext)
         {
             Cache.Clear();

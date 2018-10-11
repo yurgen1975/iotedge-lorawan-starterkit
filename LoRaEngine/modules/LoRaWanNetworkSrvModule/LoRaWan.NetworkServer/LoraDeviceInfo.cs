@@ -5,7 +5,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-
+using Microsoft.Azure.Devices.Shared;
 namespace LoRaWan.NetworkServer
 {
 
@@ -28,6 +28,7 @@ namespace LoRaWan.NetworkServer
         public UInt16 FCntDown;
         public string GatewayID;
         public string SensorDecoder;
+        public Twin CachedTwin;
     }
 
 }

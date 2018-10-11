@@ -458,9 +458,13 @@ namespace LoRaWan.NetworkServer
                 }
             }
 
-            joinLoraDeviceInfo = await LoraDeviceInfoManager.PerformOTAAAsync(GatewayID, devEui, BitConverter.ToString(joinReq.AppEUI).Replace("-", ""), devNonce);
+            Logger.Log(devEui, $"performing otaa", Logger.LoggingLevel.Info);
+            joinLoraDeviceInfo = await LoraDeviceInfoManager.PerformOTAAAsync(GatewayID, devEui, BitConverter.ToString(joinReq.AppEUI).Replace("-", ""), devNonce, joinLoraDeviceInfo);
 
+            //TODO Ronnie Check
+            Cache.AddToCache(devEui, joinLoraDeviceInfo);
 
+            Logger.Log(devEui, $"done performing otaa", Logger.LoggingLevel.Info);
             if (joinLoraDeviceInfo != null && joinLoraDeviceInfo.IsJoinValid)
             {
                 byte[] appNonce = StringToByteArray(joinLoraDeviceInfo.AppNonce);
@@ -519,7 +523,8 @@ namespace LoRaWan.NetworkServer
                 joinLoraDeviceInfo.FCntUp = 0;
                 joinLoraDeviceInfo.FCntDown = 0;
                 //update reported properties and frame Counter
-                await joinLoraDeviceInfo.HubSender.UpdateReportedPropertiesOTAAasync(joinLoraDeviceInfo);
+                //TODO Ronnie Check
+                _ = joinLoraDeviceInfo.HubSender.UpdateReportedPropertiesOTAAasync(joinLoraDeviceInfo);
                 //add to cache for processing normal messages. This awoids one additional call to the server.
                 Cache.AddToCache(joinLoraDeviceInfo.DevAddr, joinLoraDeviceInfo);
                 Logger.Log(devEui, $"join accept sent", Logger.LoggingLevel.Info);
@@ -532,7 +537,7 @@ namespace LoRaWan.NetworkServer
             
             //add to cache to avoid replay attack, btw server side does the check too.
             //TODO Ronnie Check
-            //Cache.AddToCache(devEui, joinLoraDeviceInfo);
+            Cache.AddToCache(devEui, joinLoraDeviceInfo);
 
             return udpMsgForPktForwarder;
         }
