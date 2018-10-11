@@ -36,4 +36,12 @@ namespace restAPI.DataContracts
         public uint ID { get; set; }
         public IEnumerable<GeoCoordinate> GeoCoordinates { get; set; }
     }
+
+    public class DeviceInfo
+    {
+        public ulong EUI {get;set;}
+        public uint ID {get;set;}
+        public string Name {get;set;}
+        public string Description {get;set;}
+    }
 }
