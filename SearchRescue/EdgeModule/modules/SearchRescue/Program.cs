@@ -74,13 +74,7 @@ namespace SearchRescue
 
             if (!string.IsNullOrEmpty(messageString))
             {
-                var pipeMessage = new Message(messageBytes);
-                foreach (var prop in message.Properties)
-                {
-                    pipeMessage.Properties.Add(prop.Key, prop.Value);
-                }
-                await moduleClient.SendEventAsync("output1", pipeMessage);
-                Console.WriteLine("Received message sent");
+
             }
             return MessageResponse.Completed;
         }

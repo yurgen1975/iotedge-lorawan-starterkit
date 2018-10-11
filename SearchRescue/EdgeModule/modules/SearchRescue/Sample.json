@@ -1,0 +1,25 @@
+{
+    "time": null,
+    "tmms": 0,
+    "tmst": 379529996,
+    "freq": 903.5,
+    "chan": 6,
+    "rfch": 1,
+    "stat": 1,
+    "modu": "LORA",
+    "datr": "SF10BW125",
+    "codr": "4/5",
+    "rssi": -48,
+    "lsnr": 10.8,
+    "size": 18,
+    "data": {
+        "coordinateType": "full",
+        "latitude": 22.06545345555,
+        "longitude": 22.063543545555
+      },
+    "port": 8,
+    "fcnt": 3,
+    "eui": "50AAC86800430020",
+    "gatewayid": "cehackpi2",
+    "edgets": 1539195464274
+  }
