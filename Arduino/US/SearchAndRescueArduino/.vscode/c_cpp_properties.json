@@ -1,0 +1,16 @@
+{
+    "configurations": [
+        {
+            "name": "Win32",
+            "includePath": [
+                "C:\\Users\\jtielens\\AppData\\Local\\Arduino15\\packages\\Seeeduino\\tools\\**",
+                "C:\\Users\\jtielens\\AppData\\Local\\Arduino15\\packages\\Seeeduino\\hardware\\Seeeduino_SAMD\\1.2.0\\**"
+            ],
+            "forcedInclude": [
+                "C:\\Users\\jtielens\\AppData\\Local\\Arduino15\\packages\\Seeeduino\\hardware\\Seeeduino_SAMD\\1.2.0\\cores\\arduino\\Arduino.h"
+            ],
+            "intelliSenseMode": "msvc-x64"
+        }
+    ],
+    "version": 4
+}
