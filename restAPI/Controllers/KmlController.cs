@@ -32,11 +32,12 @@ namespace restAPI.Controllers
         [HttpGet]
         public ActionResult<string> Get()
         {
-            if (!_cache.TryGetValue(CacheKeys.FullKml, out string kmlFile))
+            string cacheKey = CacheKeys.FullKml;
+            if (!_cache.TryGetValue(cacheKey, out string kmlFile))
             {
                 lock (lockObject)
                 {
-                    if (!_cache.TryGetValue(CacheKeys.FullKml, out kmlFile))
+                    if (!_cache.TryGetValue(cacheKey, out kmlFile))
                     {
                         var deviceMapPoints = _dataContext.DevicePositions.ToArray();
                         IEnumerable<IGrouping<ulong, DeviceMapPoint>> goupedDeviceMapPoints = deviceMapPoints.GroupBy(dmp => dmp.EUI);
@@ -53,7 +54,7 @@ namespace restAPI.Controllers
                             placemark.AddPoins(coordinates);
                         }
                         kmlFile = klm.ToXml();
-                        _cache.Set(CacheKeys.FullKml, kmlFile, DateTimeOffset.Now.AddSeconds(Config.CacheDurationSeconds));
+                        _cache.Set(cacheKey, kmlFile, DateTimeOffset.Now.AddSeconds(Config.CacheDurationSeconds));
                     }
                 }
             }
