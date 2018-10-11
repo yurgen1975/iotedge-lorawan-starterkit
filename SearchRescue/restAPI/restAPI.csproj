@@ -3,19 +3,20 @@
     <TargetFramework>netcoreapp2.1</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
-    <Compile Remove="Controllers\DataHelperController.cs" />
+    <Compile Remove="Controllers\DataHelperController.cs"/>
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="wwwroot\" />
+    <Folder Include="wwwroot\"/>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Controllers\DataHelperController.cs" />
+    <None Include="Controllers\DataHelperController.cs"/>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.App" />
-    <PackageReference Include="GeoCoordinate.NetCore" Version="*" />
-    <PackageReference Include="System.Data.SQLite.Core" Version="*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="*" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="*" />
+    <PackageReference Include="Microsoft.AspNetCore.App"/>
+    <PackageReference Include="GeoCoordinate.NetCore" Version="*"/>
+    <PackageReference Include="System.Data.SQLite.Core" Version="*"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="*"/>
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="*"/>
+    <PackageReference Include="AutoMapper" Version="*"/>
   </ItemGroup>
 </Project>
