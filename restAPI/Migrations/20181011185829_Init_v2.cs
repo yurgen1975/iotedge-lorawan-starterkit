@@ -3,7 +3,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 
 namespace restAPI.Migrations
 {
-    public partial class Init : Migration
+    public partial class Init_v2 : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
@@ -11,8 +11,9 @@ namespace restAPI.Migrations
                 name: "DeviceMapPoints",
                 columns: table => new
                 {
-                    eui = table.Column<ulong>(nullable: false)
+                    RecordId = table.Column<long>(nullable: false)
                         .Annotation("Sqlite:Autoincrement", true),
+                    eui = table.Column<ulong>(nullable: false),
                     id = table.Column<uint>(nullable: false),
                     Longitude = table.Column<double>(nullable: false),
                     Latitude = table.Column<double>(nullable: false),
@@ -20,7 +21,7 @@ namespace restAPI.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_DeviceMapPoints", x => x.eui);
+                    table.PrimaryKey("PK_DeviceMapPoints", x => x.RecordId);
                 });
         }
 

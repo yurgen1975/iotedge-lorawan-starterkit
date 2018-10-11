@@ -11,6 +11,8 @@ namespace restAPI.DataContracts
     public class DeviceMapPoint
     {
         [Key]
+        [Column("RecordId")]
+        public long RecordId { get; set; }
         [Column("eui")]
         public ulong EUI { get; set; }
         [Column("id")]
