@@ -19,7 +19,7 @@ namespace restAPI.DataContracts
         [Column("id")]
         public uint ID { get; set; }
         [Column("Longitude")]
-        public double Longitute { get; set; }
+        public double Longitude { get; set; }
         [Column("Latitude")]
         public double Latitude { get; set; }
         [Column("TimeStamp")]

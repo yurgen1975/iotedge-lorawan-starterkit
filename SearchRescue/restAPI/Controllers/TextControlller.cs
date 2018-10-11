@@ -24,7 +24,7 @@ namespace restAPI.Controllers
             return string.Concat("First position id DB vas recorded at: ",
                 position.TimeStamp.ToShortDateString(), " ",
                 position.TimeStamp.ToShortTimeString(),
-                " Long: ", position.Longitute, ", Lat: ", position.Latitude);
+                " Long: ", position.Longitude, ", Lat: ", position.Latitude);
         }
 
         [HttpGet("{text}")]
