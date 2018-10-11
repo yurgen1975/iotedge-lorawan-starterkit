@@ -5,6 +5,7 @@ using GeoCoordinatePortable;
 using System.Linq;
 using restAPI.DataContext.Models;
 using restAPI.DataContracts;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace restAPI.Controllers
 {
@@ -12,40 +13,82 @@ namespace restAPI.Controllers
     [ApiController]
     public class KmlController : ControllerBase
     {
-        private DevicePositionContext _dataContext;
+        private static readonly object lockObject;
+        static KmlController()
+        {
+            lockObject = new object();
+        }
 
-        public KmlController(DevicePositionContext dataContext)
+        private DevicePositionContext _dataContext;
+        private IMemoryCache _cache;
+
+        public KmlController(DevicePositionContext dataContext, IMemoryCache memoryCache)
         {
             _dataContext = dataContext;
+            _cache = memoryCache;
         }
-        
+
         // GET api/klm
         [HttpGet]
         public ActionResult<string> Get()
         {
-            var deviceMapPoints = _dataContext.DevicePositions.Select(dp => dp).ToArray();
-            IEnumerable<IGrouping<ulong, DeviceMapPoint>> goupedDeviceMapPoints = deviceMapPoints.GroupBy(dmp => dmp.EUI);
-            DeviceCoordinates[] deviceCoordinatesArray = goupedDeviceMapPoints.Select(item => new DeviceCoordinates(item.Key, 0, item.Select(gps => new Tuple<double, double>(gps.Latitude, gps.Longitute)))).ToArray();
-
-            Kml klm = new Kml();
-            foreach (DeviceCoordinates deviceCoordinates in deviceCoordinatesArray)
+            if (!_cache.TryGetValue(CacheKeys.FullKml, out string kmlFile))
             {
-                KmlDocumentPlacemark placemark = new KmlDocumentPlacemark();
-                placemark.Name = deviceCoordinates.EUI.ToString();
-                placemark.Description = deviceCoordinates.ID.ToString();
-                klm.Document.AddPlacemark(placemark);
-                IEnumerable<GeoCoordinate> coordinates = deviceCoordinates.GeoCoordinates.Select(gps => new GeoCoordinate(gps.Latitude, gps.Longitude));
-                placemark.AddPoins(coordinates);
-            }
+                lock (lockObject)
+                {
+                    if (!_cache.TryGetValue(CacheKeys.FullKml, out kmlFile))
+                    {
+                        var deviceMapPoints = _dataContext.DevicePositions.ToArray();
+                        IEnumerable<IGrouping<ulong, DeviceMapPoint>> goupedDeviceMapPoints = deviceMapPoints.GroupBy(dmp => dmp.EUI);
+                        DeviceCoordinates[] deviceCoordinatesArray = goupedDeviceMapPoints.Select(item => new DeviceCoordinates(item.Key, 0, item.Select(gps => new Tuple<double, double>(gps.Latitude, gps.Longitute)))).ToArray();
 
-            return klm.ToXml();
+                        Kml klm = new Kml();
+                        foreach (DeviceCoordinates deviceCoordinates in deviceCoordinatesArray)
+                        {
+                            KmlDocumentPlacemark placemark = new KmlDocumentPlacemark();
+                            placemark.Name = deviceCoordinates.EUI.ToString();
+                            placemark.Description = deviceCoordinates.ID.ToString();
+                            klm.Document.AddPlacemark(placemark);
+                            IEnumerable<GeoCoordinate> coordinates = deviceCoordinates.GeoCoordinates.Select(gps => new GeoCoordinate(gps.Latitude, gps.Longitude));
+                            placemark.AddPoins(coordinates);
+                        }
+                        kmlFile = klm.ToXml();
+                        _cache.Set(CacheKeys.FullKml, kmlFile, DateTimeOffset.Now.AddSeconds(Config.CacheDurationSeconds));
+                    }
+                }
+            }
+            return kmlFile;
         }
 
         // GET api/klm/52549 - specific device ID
         [HttpGet("{id}")]
-        public ActionResult<IEnumerable<GeoCoordinate>> Get(ulong deviceEUI)
+        public ActionResult<string> Get(ulong deviceEUI)
         {
-            throw new NotImplementedException();
+            string cacheKey = CacheKeys.GetKeyForDeviceKml(deviceEUI);
+            if (!_cache.TryGetValue(cacheKey, out string kmlFile))
+            {
+                lock (lockObject)
+                {
+                    if (!_cache.TryGetValue(cacheKey, out kmlFile))
+                    {
+                        var deviceMapPoints = _dataContext.DevicePositions.Where(dmp => dmp.EUI == deviceEUI).ToArray();
+                        DeviceCoordinates deviceCoordinates = new DeviceCoordinates(deviceEUI, 0, deviceMapPoints.Select(gps => new Tuple<double, double>(gps.Latitude, gps.Longitute)));
+
+                        Kml klm = new Kml();
+
+                        KmlDocumentPlacemark placemark = new KmlDocumentPlacemark();
+                        placemark.Name = deviceEUI.ToString();
+                        placemark.Description = deviceCoordinates.ID.ToString();
+                        klm.Document.AddPlacemark(placemark);
+                        IEnumerable<GeoCoordinate> coordinates = deviceCoordinates.GeoCoordinates.Select(gps => new GeoCoordinate(gps.Latitude, gps.Longitude));
+                        placemark.AddPoins(coordinates);
+
+                        kmlFile = klm.ToXml();
+                        _cache.Set(cacheKey, kmlFile, DateTimeOffset.Now.AddSeconds(Config.CacheDurationSeconds));
+                    }
+                }
+            }
+            return kmlFile;
         }
     }
 }

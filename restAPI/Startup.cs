@@ -23,6 +23,7 @@ namespace restAPI
         {
             services.AddMvc().SetCompatibilityVersion(CompatibilityVersion.Version_2_1);
             services.AddDbContext<DevicePositionContext>(options => options.UseSqlite($"Data Source={System.IO.Path.Combine(AppContext.BaseDirectory, "data.db")}"));
+            services.AddMemoryCache();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
