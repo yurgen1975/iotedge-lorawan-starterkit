@@ -27,7 +27,8 @@
               "src/assets/leaflet/leaflet.css"
             ],
             "scripts": [
-              "src/assets/leaflet/leaflet.js"
+              "src/assets/leaflet/leaflet.js",
+              "src/assets/leaflet-plugins/layer/vector/KML.js"
             ]
           },
           "configurations": {

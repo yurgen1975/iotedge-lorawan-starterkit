@@ -78,7 +78,7 @@ namespace restAPI.DataContracts
         internal void AddPoins(IEnumerable<GeoCoordinate> geoCoordinates)
         {
             LineString.Coordinates = string.Concat(LineString.Coordinates, Environment.NewLine,
-                geoCoordinates.Select(c => string.Concat(c.Latitude, ",", c.Longitude, ",0")).Aggregate((current, next) => string.Concat(current, Environment.NewLine, next)));
+                geoCoordinates.Select(c => string.Concat(c.Longitude, ",", c.Latitude, ",0")).Aggregate((current, next) => string.Concat(current, Environment.NewLine, next)));
         }
     }
 
