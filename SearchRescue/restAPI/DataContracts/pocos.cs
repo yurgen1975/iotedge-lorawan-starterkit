@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
+using System.Runtime.Serialization;
 
 namespace restAPI.DataContracts
 {
@@ -39,11 +40,31 @@ namespace restAPI.DataContracts
         public IEnumerable<GeoCoordinate> GeoCoordinates { get; set; }
     }
 
+    [DataContract]
     public class DeviceInfo
     {
+        [DataMember]
         public ulong EUI {get;set;}
+        [DataMember]
         public uint ID {get;set;}
+        [DataMember]
         public string Name {get;set;}
+        [DataMember]
         public string Description {get;set;}
+    }
+
+    [DataContract]
+    public class GpsData
+    {
+        [DataMember(Name = "latitude")]
+        public double Latitude {get;set;}
+        [DataMember(Name = "longitude")]
+        public double Longitude {get;set;}
+        [DataMember(Name = "time")]
+        public DateTime TimeStamp {get;set;}
+        [DataMember(Name = "eui")]
+        public ulong EUI { get; set; }
+        [DataMember(Name = "id")]
+        public uint ID { get; set; }
     }
 }
