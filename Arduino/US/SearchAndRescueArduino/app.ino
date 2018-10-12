@@ -1,4 +1,4 @@
-//#define USE_LORA
+#define USE_LORA
 
 #include "LoRaWan.h"
 #include <TinyGPS.h>
@@ -50,11 +50,11 @@ void setup(void)
     bool locked;
 
     SerialUSB.begin(115200);
-    while (!SerialUSB)
-        ;
+    while (!SerialUSB);
 
     Serial.begin(9600); // open the GPS
     locked = false;
+
 
 #ifdef USE_LORA
 

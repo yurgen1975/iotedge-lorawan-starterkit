@@ -69,8 +69,8 @@ namespace LoRaWan.NetworkServer
             else if (payload.Length == 8)     /* receiving full coordinates */
             {
 
-                byte[] bytes_lat = { payload[0], payload[1], payload[2], payload[3] };
-                byte[] bytes_lng = { payload[4], payload[5], payload[6], payload[7] };
+                byte[] bytes_lat = { payload[3], payload[2], payload[1], payload[0] };
+                byte[] bytes_lng = { payload[7], payload[6], payload[5], payload[4] };
 
                 //default lora mote
                 var lat_val = BitConverter.ToInt32(bytes_lat, 0);
