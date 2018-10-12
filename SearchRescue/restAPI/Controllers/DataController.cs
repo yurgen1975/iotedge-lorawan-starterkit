@@ -32,7 +32,7 @@ namespace restAPI.Controllers
             dmp.ID=gpsData.ID;
             dmp.TimeStamp = gpsData.TimeStamp;
             dmp.Latitude = gpsData.Latitude;
-            dmp.Longitute = gpsData.Longitude;
+            dmp.Longitude = gpsData.Longitude;
             _dataContext.DevicePositions.Add(dmp);
             _dataContext.SaveChanges();
             return 0;
