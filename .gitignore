@@ -290,3 +290,5 @@ __pycache__/
 Doc
 /.vscode/arduino.json
 /.vscode/c_cpp_properties.json
+/LoRaEngine/modules/LoRaSimulator/Logger
+/LoRaEngine/modules/LoRaSimulator/LoraTools
