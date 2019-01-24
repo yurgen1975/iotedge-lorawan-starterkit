@@ -174,19 +174,19 @@ namespace LoRaWan.NetworkServer
                             List<KeyValuePair<String, String>> messageProperties = new List<KeyValuePair<String, String>>();
 
                             //Parsing MacCommands and add them as property of the message to be sent to the IoT Hub.
-                            var macCommand = ((LoRaPayloadData)loraMessage.LoRaPayloadMessage).GetMacCommands();
-                            if (macCommand.macCommand.Count > 0)
-                            {
-                                for (int i = 0; i < macCommand.macCommand.Count; i++)
-                                {
-                                    messageProperties.Add(new KeyValuePair<string, string>(macCommand.macCommand[i].Cid.ToString(), value: JsonConvert.SerializeObject(macCommand.macCommand[i], Newtonsoft.Json.Formatting.None)));
-                                    //in case it is a link check mac, we need to send it downstream.
-                                    if (macCommand.macCommand[i].Cid == CidEnum.LinkCheckCmd)
-                                    {
-                                        linkCheckCmdResponse = new LinkCheckCmd(rxPk.GetModulationMargin(), 1).ToBytes();
-                                    }
-                                }
-                            }
+                            //var macCommand = ((LoRaPayloadData)loraMessage.LoRaPayloadMessage).GetMacCommands();
+                            //if (macCommand.macCommand.Count > 0)
+                            //{
+                            //    for (int i = 0; i < macCommand.macCommand.Count; i++)
+                            //    {
+                            //        messageProperties.Add(new KeyValuePair<string, string>(macCommand.macCommand[i].Cid.ToString(), value: JsonConvert.SerializeObject(macCommand.macCommand[i], Newtonsoft.Json.Formatting.None)));
+                            //        //in case it is a link check mac, we need to send it downstream.
+                            //        if (macCommand.macCommand[i].Cid == CidEnum.LinkCheckCmd)
+                            //        {
+                            //            linkCheckCmdResponse = new LinkCheckCmd(rxPk.GetModulationMargin(), 1).ToBytes();
+                            //        }
+                            //    }
+                            //}
                             string iotHubMsg = fullPayload.ToString(Newtonsoft.Json.Formatting.None);
                             await loraDeviceInfo.HubSender.SendMessageAsync(iotHubMsg, messageProperties);
                             
