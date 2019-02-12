@@ -30,7 +30,7 @@ namespace LoRaWan.NetworkServer
         /// <summary>
         /// Updates device after a succesfull join request
         /// </summary>
-        void UpdateDeviceAfterJoin(LoRaDevice loRaDevice);
+        Task UpdateDeviceAfterJoinAsync(LoRaDevice loRaDevice, string oldDevAddr = null);
 
         /// <summary>
         /// Registers a <see cref="ILoRaDeviceInitializer"/>
@@ -46,5 +46,10 @@ namespace LoRaWan.NetworkServer
         /// Gets a <see cref="ILoRaDeviceRequestQueue"/> where requests can be queued
         /// </summary>
         ILoRaDeviceRequestQueue GetLoRaRequestQueue(LoRaRequest request);
+
+        /// <summary>
+        /// Gets a device by DevEUI
+        /// </summary>
+        Task<LoRaDevice> GetDeviceByDevEUIAsync(string devEUI);
     }
 }

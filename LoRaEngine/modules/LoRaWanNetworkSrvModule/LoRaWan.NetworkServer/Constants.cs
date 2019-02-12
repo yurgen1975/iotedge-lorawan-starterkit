@@ -28,5 +28,10 @@ namespace LoRaWan.NetworkServer
 
         // Invalid receive window (when trying to resolve the window to use)
         public const int INVALID_RECEIVE_WINDOW = 0;
+
+        /// <summary>
+        /// Defines the maximum difference between saved frame counts before we require a change
+        /// </summary>
+        public const int MAX_FCNT_UNSAVED_DELTA = 10;
     }
 }

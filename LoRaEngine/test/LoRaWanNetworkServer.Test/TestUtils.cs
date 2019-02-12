@@ -67,6 +67,7 @@ namespace LoRaWan.NetworkServer.Test
                     { TwinProperty.NwkSKey, simulatedDevice.NwkSKey },
                     { TwinProperty.GatewayID, simulatedDevice.LoRaDevice.GatewayID },
                     { TwinProperty.SensorDecoder, simulatedDevice.LoRaDevice.SensorDecoder },
+                    { TwinProperty.ClassType, simulatedDevice.ClassType.ToString() },
                 };
 
             if (desiredProperties != null)
@@ -94,6 +95,7 @@ namespace LoRaWan.NetworkServer.Test
                     { TwinProperty.AppKey, simulatedDevice.AppKey },
                     { TwinProperty.GatewayID, simulatedDevice.LoRaDevice.GatewayID },
                     { TwinProperty.SensorDecoder, simulatedDevice.LoRaDevice.SensorDecoder },
+                    { TwinProperty.ClassType, simulatedDevice.ClassType.ToString() },
                 };
 
             if (desiredProperties != null)

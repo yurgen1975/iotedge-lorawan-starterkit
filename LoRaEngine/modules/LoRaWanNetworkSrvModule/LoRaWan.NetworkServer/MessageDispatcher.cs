@@ -185,6 +185,8 @@ namespace LoRaWan.NetworkServer
                 var nwkSKey = OTAAKeysGenerator.CalculateKey(new byte[1] { 0x01 }, appNonceBytes, netId, joinReq.DevNonce, appKeyBytes);
                 var devAddr = OTAAKeysGenerator.GetNwkId(netId);
 
+                var oldDevAddr = loRaDevice.DevAddr;
+
                 if (!timeWatcher.InTimeForJoinAccept())
                 {
                     // in this case it's too late, we need to break and avoid saving twins
@@ -243,7 +245,7 @@ namespace LoRaWan.NetworkServer
                 }
 
                 loRaDevice.IsOurDevice = true;
-                this.deviceRegistry.UpdateDeviceAfterJoin(loRaDevice);
+                await this.deviceRegistry.UpdateDeviceAfterJoinAsync(loRaDevice, oldDevAddr);
 
                 // Build join accept downlink message
                 Array.Reverse(netId);

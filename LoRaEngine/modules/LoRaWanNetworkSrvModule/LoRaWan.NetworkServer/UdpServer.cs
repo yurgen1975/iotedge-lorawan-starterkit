@@ -42,7 +42,8 @@ namespace LoRaWan.NetworkServer
         readonly SemaphoreSlim randomLock = new SemaphoreSlim(1);
         readonly Random random = new Random();
 
-        ModuleClient ioTHubModuleClient;
+        private IClassCDeviceMessageSender classCMessageSender;
+        private ModuleClient ioTHubModuleClient;
         private volatile int pullAckRemoteLoRaAggregatorPort = 0;
         private volatile string pullAckRemoteLoRaAddress = null;
         UdpClient udpClient;
@@ -76,7 +77,14 @@ namespace LoRaWan.NetworkServer
             var loRaDeviceRegistry = new LoRaDeviceRegistry(configuration, new MemoryCache(new MemoryCacheOptions()), loRaDeviceAPIService, loRaDeviceFactory);
 
             var messageDispatcher = new MessageDispatcher(configuration, loRaDeviceRegistry, frameCounterStrategyProvider);
-            return new UdpServer(configuration, messageDispatcher, loRaDeviceAPIService, loRaDeviceRegistry);
+            var udpServer = new UdpServer(configuration, messageDispatcher, loRaDeviceAPIService, loRaDeviceRegistry);
+
+            // TODO: review dependencies
+            var classCMessageSender = new DefaultClassCDevicesMessageSender(configuration, null, loRaDeviceRegistry, udpServer, frameCounterStrategyProvider);
+            dataHandlerImplementation.SetClassCMessageSender(classCMessageSender);
+
+            udpServer.SetClassCMessageSender(classCMessageSender);
+            return udpServer;
 #else
             var loRaDeviceFactory = new LoRaDeviceFactory(configuration, null);
             var loRaDeviceAPIService = new LoRaDeviceAPIService(configuration, new ServiceFacadeHttpClientProvider(configuration, ApiVersion.LatestVersion));
@@ -467,8 +475,36 @@ namespace LoRaWan.NetworkServer
             {
                 return await this.ClearCache(methodRequest, userContext);
             }
+            else if (string.Equals("cloudtodevicemessage", methodRequest.Name, StringComparison.InvariantCultureIgnoreCase))
+            {
+                return await this.SendCloudToDeviceMessageAsync(methodRequest);
+            }
 
             return new MethodResponse(404);
+        }
+
+        private async Task<MethodResponse> SendCloudToDeviceMessageAsync(MethodRequest methodRequest)
+        {
+            if (this.classCMessageSender == null)
+            {
+                return new MethodResponse((int)HttpStatusCode.NotFound);
+            }
+
+            var c2d = JsonConvert.DeserializeObject<LoRaCloudToDeviceMessage>(methodRequest.DataAsJson);
+            Logger.Log(c2d.DevEUI, $"Received c2d from direct method: {methodRequest.DataAsJson}", LogLevel.Debug);
+
+            CancellationToken cts = CancellationToken.None;
+            if (methodRequest.ResponseTimeout.HasValue)
+                cts = new CancellationTokenSource(methodRequest.ResponseTimeout.Value).Token;
+
+            if (await this.classCMessageSender.SendAsync(c2d, cts))
+            {
+                return new MethodResponse((int)HttpStatusCode.OK);
+            }
+            else
+            {
+                return new MethodResponse((int)HttpStatusCode.BadRequest);
+            }
         }
 
         private Task<MethodResponse> ClearCache(MethodRequest methodRequest, object userContext)
@@ -510,6 +546,8 @@ namespace LoRaWan.NetworkServer
 
             return Task.CompletedTask;
         }
+
+        private void SetClassCMessageSender(DefaultClassCDevicesMessageSender classCMessageSender) => this.classCMessageSender = classCMessageSender;
 
         private bool disposedValue = false; // To detect redundant calls
 

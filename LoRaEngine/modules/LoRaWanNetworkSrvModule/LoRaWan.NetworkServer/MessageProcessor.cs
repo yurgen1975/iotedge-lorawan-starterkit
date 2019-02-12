@@ -265,12 +265,13 @@ namespace LoRaWan.NetworkServer
                                 if (string.IsNullOrEmpty(loRaDevice.SensorDecoder))
                                 {
                                     Logger.Log(loRaDevice.DevEUI, $"no decoder set in device twin. port: {fportUp}", LogLevel.Debug);
-                                    payloadData = Convert.ToBase64String(decryptedPayloadData);
+                                    payloadData = new UndecodedPayload(decryptedPayloadData);
                                 }
                                 else
                                 {
                                     Logger.Log(loRaDevice.DevEUI, $"decoding with: {loRaDevice.SensorDecoder} port: {fportUp}", LogLevel.Debug);
-                                    payloadData = await this.payloadDecoder.DecodeMessageAsync(decryptedPayloadData, fportUp, loRaDevice.SensorDecoder);
+                                    var decodePayloadResult = await this.payloadDecoder.DecodeMessageAsync(loRaDevice.DevEUI, decryptedPayloadData, fportUp, loRaDevice.SensorDecoder);
+                                    payloadData = decodePayloadResult.GetDecodedPayload();
                                 }
                             }
 
@@ -577,7 +578,7 @@ namespace LoRaWan.NetworkServer
         // Sends device telemetry data to IoT Hub
         private async Task<bool> SendDeviceEventAsync(LoRaDevice loRaDevice, Rxpk rxpk, object decodedValue, LoRaPayloadData loRaPayloadData, LoRaOperationTimeWatcher timeWatcher, DeduplicationResult deduplicationResult)
         {
-            var deviceTelemetry = new LoRaDeviceTelemetry(rxpk, loRaPayloadData, decodedValue)
+            var deviceTelemetry = new LoRaDeviceTelemetry(rxpk, loRaPayloadData, decodedValue, null)
             {
                 DeviceEUI = loRaDevice.DevEUI,
                 GatewayID = this.configuration.GatewayID,
@@ -617,8 +618,8 @@ namespace LoRaWan.NetworkServer
 
             if (await loRaDevice.SendEventAsync(deviceTelemetry, eventProperties))
             {
-                var payloadAsRaw = deviceTelemetry.Data as string;
-                if (payloadAsRaw == null && deviceTelemetry.Data != null)
+                string payloadAsRaw = null;
+                if (deviceTelemetry.Data != null)
                 {
                     payloadAsRaw = JsonConvert.SerializeObject(deviceTelemetry.Data, Formatting.None);
                 }
@@ -770,7 +771,7 @@ namespace LoRaWan.NetworkServer
                 }
 
                 loRaDevice.IsOurDevice = true;
-                this.deviceRegistry.UpdateDeviceAfterJoin(loRaDevice);
+                await this.deviceRegistry.UpdateDeviceAfterJoinAsync(loRaDevice);
 
                 // Build join accept downlink message
                 Array.Reverse(netId);

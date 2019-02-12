@@ -31,9 +31,10 @@ namespace LoRaWan.NetworkServer
         private readonly LoRaDeviceAPIServiceBase loRaDeviceAPIService;
         private readonly ILoRaDeviceFactory deviceFactory;
         private readonly string devAddr;
-        private readonly DevEUIToLoRaDeviceDictionary destinationDictionary;
+        private readonly DevEUIToLoRaDeviceDictionary existingDevices;
         private readonly HashSet<ILoRaDeviceInitializer> initializers;
         private readonly NetworkServerConfiguration configuration;
+        private readonly Action<LoRaDevice> registerDeviceAction;
         private readonly Task loading;
         private volatile LoaderState state;
         private volatile bool loadingDevicesFailed;
@@ -47,14 +48,16 @@ namespace LoRaWan.NetworkServer
             DevEUIToLoRaDeviceDictionary destinationDictionary,
             HashSet<ILoRaDeviceInitializer> initializers,
             NetworkServerConfiguration configuration,
-            Action<Task> continuationAction)
+            Action<Task> continuationAction,
+            Action<LoRaDevice> registerDeviceAction)
         {
             this.loRaDeviceAPIService = loRaDeviceAPIService;
             this.deviceFactory = deviceFactory;
             this.devAddr = devAddr;
-            this.destinationDictionary = destinationDictionary;
+            this.existingDevices = destinationDictionary;
             this.initializers = initializers;
             this.configuration = configuration;
+            this.registerDeviceAction = registerDeviceAction;
             this.state = LoaderState.QueryingDevices;
             this.loadingDevicesFailed = false;
             this.queueLock = new object();
@@ -98,14 +101,7 @@ namespace LoRaWan.NetworkServer
 
                     foreach (var device in createdDevices)
                     {
-                        var deviceInDictionary = this.destinationDictionary.AddOrUpdate(device.DevEUI, device, (_, existing) =>
-                        {
-                            return existing;
-                        });
-
-                        // Only log if the device was actually added
-                        if (object.ReferenceEquals(deviceInDictionary, device) && !string.IsNullOrEmpty(device?.DevEUI))
-                            Logger.Log(device.DevEUI, "device added to cache", LogLevel.Debug);
+                        this.registerDeviceAction(device);
                     }
 
                     this.SetState(LoaderState.Finished);
@@ -131,7 +127,7 @@ namespace LoRaWan.NetworkServer
                 foreach (var foundDevice in devices)
                 {
                     // Only create devices that don't exist in target dictionary
-                    if (!this.destinationDictionary.ContainsKey(foundDevice.DevEUI))
+                    if (!this.existingDevices.ContainsKey(foundDevice.DevEUI))
                     {
                         var loRaDevice = this.deviceFactory.Create(foundDevice);
                         initTasks.Add(this.InitializeDeviceAsync(loRaDevice));
@@ -179,7 +175,7 @@ namespace LoRaWan.NetworkServer
 
         private void DispatchQueuedItems(List<LoRaDevice> devices)
         {
-            var hasDevicesMatchingDevAddr = (devices.Count + this.destinationDictionary.Count) > 0;
+            var hasDevicesMatchingDevAddr = (devices.Count + this.existingDevices.Count) > 0;
 
             foreach (var request in this.queuedRequests)
             {
@@ -229,7 +225,7 @@ namespace LoRaWan.NetworkServer
             {
                 Logger.Log(this.devAddr, $"Will try to queue request directly into device. Loader state: {this.state}", LogLevel.Debug);
 
-                foreach (var device in this.destinationDictionary.Values)
+                foreach (var device in this.existingDevices.Values)
                 {
                     if (request.Payload.CheckMic(device.NwkSKey))
                     {
@@ -241,7 +237,7 @@ namespace LoRaWan.NetworkServer
                 // not handled, raised failed event
                 var failedReason =
                     this.loadingDevicesFailed ? LoRaDeviceRequestFailedReason.ApplicationError :
-                    this.destinationDictionary.Count > 0 ? LoRaDeviceRequestFailedReason.NotMatchingDeviceByMicCheck : LoRaDeviceRequestFailedReason.NotMatchingDeviceByDevAddr;
+                    this.existingDevices.Count > 0 ? LoRaDeviceRequestFailedReason.NotMatchingDeviceByMicCheck : LoRaDeviceRequestFailedReason.NotMatchingDeviceByDevAddr;
 
                 this.LogRequestFailed(request, failedReason);
 
