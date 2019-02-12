@@ -111,7 +111,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var downlinkJoinAcceptMessage = await messageProcessor.ProcessMessageAsync(joinRxpk);
             Assert.NotNull(downlinkJoinAcceptMessage);
@@ -252,7 +253,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             // 1st join request
             // Should fail
@@ -346,7 +348,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             // join request should fail
             var joinRequestDownlinkMessage = await messageProcessor.ProcessMessageAsync(joinRequestRxpk);
@@ -402,7 +405,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             // join request should fail
             var joinRequestDownlinkMessage = await messageProcessor.ProcessMessageAsync(joinRequestRxpk);
@@ -469,7 +473,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var downlinkJoinAcceptMessage = await messageProcessor.ProcessMessageAsync(joinRxpk);
             Assert.NotNull(downlinkJoinAcceptMessage);
@@ -529,7 +534,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             // 1st join request
             var joinRequest1Response = messageProcessor.ProcessMessageAsync(simulatedDevice.CreateJoinRequest().SerializeUplink(simulatedDevice.AppKey).Rxpk[0]);

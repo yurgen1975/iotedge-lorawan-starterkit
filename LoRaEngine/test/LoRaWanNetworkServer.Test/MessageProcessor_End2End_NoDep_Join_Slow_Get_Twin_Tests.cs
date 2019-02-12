@@ -79,7 +79,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             // 1st join request
             // Should fail

@@ -67,7 +67,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             // sends unconfirmed message
             var unconfirmedMessagePayload = simulatedDevice.CreateUnconfirmedDataUpMessage("1234");
@@ -126,7 +127,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             // sends confirmed message
             var rxpk = simulatedDevice.CreateConfirmedMessageUplink("1234", fcnt: payloadFcnt).Rxpk[0];
@@ -183,7 +185,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var payload = simulatedDevice.CreateUnconfirmedDataUpMessage("1234", fcnt: PayloadFcnt);
             var rxpk = payload.SerializeUplink(simulatedDevice.AppSKey, simulatedDevice.NwkSKey).Rxpk[0];
@@ -262,7 +265,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var payload = simulatedDevice.CreateConfirmedDataUpMessage("1234", fcnt: PayloadFcnt);
             var rxpk = payload.SerializeUplink(simulatedDevice.AppSKey, simulatedDevice.NwkSKey).Rxpk[0];
@@ -345,7 +349,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 loRaDeviceRegistry,
                 new LoRaDeviceFrameCounterUpdateStrategyFactory(this.ServerConfiguration.GatewayID, loRaDeviceAPI.Object),
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var payload = simulatedDevice.CreateUnconfirmedDataUpMessage("1234", fcnt: PayloadFcnt);
             var rxpk = payload.SerializeUplink(simulatedDevice.AppSKey, simulatedDevice.NwkSKey).Rxpk[0];
@@ -443,7 +448,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 loRaDeviceRegistry,
                 new LoRaDeviceFrameCounterUpdateStrategyFactory(this.ServerConfiguration.GatewayID, loRaDeviceAPI.Object),
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var payload = simulatedDevice.CreateUnconfirmedDataUpMessage("1234", fcnt: PayloadFcnt);
             var rxpk = payload.SerializeUplink(simulatedDevice.AppSKey, simulatedDevice.NwkSKey).Rxpk[0];
@@ -546,7 +552,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 loRaDeviceRegistry,
                 new LoRaDeviceFrameCounterUpdateStrategyFactory(this.ServerConfiguration.GatewayID, loRaDeviceAPI.Object),
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var payload = simulatedDevice.CreateUnconfirmedDataUpMessage("1234", fcnt: PayloadFcnt);
             var rxpk = payload.SerializeUplink(simulatedDevice.AppSKey, simulatedDevice.NwkSKey).Rxpk[0];
@@ -670,7 +677,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 new LoRaDeviceFrameCounterUpdateStrategyFactory(this.ServerConfiguration.GatewayID, loRaDeviceAPI.Object),
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var payload = simulatedDevice.CreateUnconfirmedDataUpMessage("1234", fcnt: PayloadFcnt);
             var rxpk = payload.SerializeUplink(simulatedDevice.AppSKey, simulatedDevice.NwkSKey).Rxpk[0];

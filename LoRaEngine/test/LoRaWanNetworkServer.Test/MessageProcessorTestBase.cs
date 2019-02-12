@@ -17,6 +17,7 @@ namespace LoRaWan.NetworkServer.Test
 
         private readonly Mock<ILoRaDeviceFrameCounterUpdateStrategy> frameCounterUpdateStrategy;
         private readonly Mock<ILoRaDeviceFrameCounterUpdateStrategyFactory> frameCounterUpdateStrategyFactory;
+        private readonly Mock<IDeduplicationStrategyFactory> deduplicationMessageStrategyFactory;
         private readonly byte[] macAddress;
         private long startTime;
         private NetworkServerConfiguration serverConfiguration;
@@ -26,6 +27,8 @@ namespace LoRaWan.NetworkServer.Test
         protected Mock<ILoRaDeviceFrameCounterUpdateStrategy> FrameCounterUpdateStrategy => this.frameCounterUpdateStrategy;
 
         protected Mock<ILoRaDeviceFrameCounterUpdateStrategyFactory> FrameCounterUpdateStrategyFactory { get => this.frameCounterUpdateStrategyFactory; }
+
+        protected Mock<IDeduplicationStrategyFactory> DeduplicationMessageStrategyFactory { get => this.deduplicationMessageStrategyFactory; }
 
         private readonly Mock<ILoRaDeviceRegistry> loRaDeviceRegistry;
 
@@ -47,6 +50,8 @@ namespace LoRaWan.NetworkServer.Test
 
             this.frameCounterUpdateStrategy = new Mock<ILoRaDeviceFrameCounterUpdateStrategy>(MockBehavior.Strict);
             this.frameCounterUpdateStrategyFactory = new Mock<ILoRaDeviceFrameCounterUpdateStrategyFactory>(MockBehavior.Strict);
+            this.deduplicationMessageStrategyFactory = new Mock<IDeduplicationStrategyFactory>(MockBehavior.Loose);
+            this.deduplicationMessageStrategyFactory.Setup(x => x.Create(It.IsNotNull<LoRaDevice>())).Returns((ILoRaDeviceMessageDeduplicationStrategy)null);
             this.loRaDeviceRegistry = new Mock<ILoRaDeviceRegistry>(MockBehavior.Strict);
             this.loRaDeviceRegistry.Setup(x => x.RegisterDeviceInitializer(It.IsNotNull<ILoRaDeviceInitializer>()));
         }

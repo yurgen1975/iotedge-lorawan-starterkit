@@ -99,7 +99,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 frameCounterUpdateStrategyFactory,
-                new LoRaPayloadDecoder());
+                new LoRaPayloadDecoder(),
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var joinRequestTask1 = messageProcessor.ProcessMessageAsync(joinRequestRxpk1);
 

@@ -45,7 +45,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var actual = await messageProcessor.ProcessMessageAsync(rxpk);
             Assert.Null(actual);
@@ -88,7 +89,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var actual = await messageProcessor.ProcessMessageAsync(rxpk);
             Assert.NotNull(actual);
@@ -151,7 +153,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var actual = await messageProcessor.ProcessMessageAsync(rxpk);
             Assert.Null(actual);
@@ -192,7 +195,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var actual = await messageProcessor.ProcessMessageAsync(rxpk);
             Assert.Null(actual);
@@ -234,7 +238,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var actual = await messageProcessor.ProcessMessageAsync(rxpk);
             Assert.Null(actual);
@@ -271,7 +276,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var actual = await messageProcessor.ProcessMessageAsync(rxpk);
             Assert.Null(actual);
@@ -350,7 +356,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var downlinkMessage = await messageProcessor.ProcessMessageAsync(rxpk);
             Assert.NotNull(downlinkMessage);
@@ -408,7 +415,8 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 deviceRegistry,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var downlinkMessage = await messageProcessor.ProcessMessageAsync(rxpk);
             Assert.Null(downlinkMessage);

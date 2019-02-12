@@ -69,13 +69,15 @@ namespace LoRaWan.NetworkServer.Test
                 this.ServerConfiguration,
                 this.LoRaDeviceRegistry.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             var messageProcessor2 = new MessageProcessor(
                 new NetworkServerConfiguration() { GatewayID = "test-gateway-2" },
                 this.loRaDeviceRegistry2.Object,
                 this.FrameCounterUpdateStrategyFactory.Object,
-                payloadDecoder.Object);
+                payloadDecoder.Object,
+                this.DeduplicationMessageStrategyFactory.Object);
 
             // Starts with fcnt up zero
             Assert.Equal(0, loraDevice1.FCntUp);
