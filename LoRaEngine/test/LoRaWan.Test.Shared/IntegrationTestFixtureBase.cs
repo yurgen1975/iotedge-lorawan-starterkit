@@ -27,13 +27,12 @@ namespace LoRaWan.Test.Shared
         public EventHubDataCollector IoTHubMessages { get; private set; }
 
         Lazy<ServiceClient> serviceClient;
-        Lazy<Task<Microsoft.Azure.Devices.Client.ModuleClient>> moduleClient;
+        Microsoft.Azure.Devices.Client.ModuleClient moduleClient;
 
         public IntegrationTestFixtureBase()
         {
             this.Configuration = TestConfiguration.GetConfiguration();
             this.serviceClient = new Lazy<ServiceClient>(() => ServiceClient.CreateFromConnectionString(this.Configuration.IoTHubConnectionString));
-            this.moduleClient = new Lazy<Task<Microsoft.Azure.Devices.Client.ModuleClient>>(this.CreateModuleClientAsync);
             TestLogger.Log($"[INFO] {nameof(this.Configuration.IoTHubAssertLevel)}: {this.Configuration.IoTHubAssertLevel}");
             TestLogger.Log($"[INFO] {nameof(this.Configuration.NetworkServerModuleLogAssertLevel)}: {this.Configuration.NetworkServerModuleLogAssertLevel}");
 
@@ -158,21 +157,24 @@ namespace LoRaWan.Test.Shared
             await this.GetServiceClient().SendAsync(deviceId, message);
         }
 
+        /// <summary>
+        /// Singleton for the module client
+        /// Does not have to be thread-safe as CI does not run tests in parallel
+        /// </summary>
+        /// <returns></returns>
         public async Task<Microsoft.Azure.Devices.Client.ModuleClient> GetModuleClientAsync()
         {
-            return await this.moduleClient.Value;
-        }
-
-        private Task<Microsoft.Azure.Devices.Client.ModuleClient> CreateModuleClientAsync()
-        {
-            if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_MODULEID")) &&
-                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_DEVICEID")) &&
-                !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_APIVERSION")))
+            if (this.moduleClient == null)
             {
-                return Microsoft.Azure.Devices.Client.ModuleClient.CreateFromEnvironmentAsync();
+                if (!string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_MODULEID")) &&
+                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_DEVICEID")) &&
+                    !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("IOTEDGE_APIVERSION")))
+                {
+                    this.moduleClient = await Microsoft.Azure.Devices.Client.ModuleClient.CreateFromEnvironmentAsync();
+                }
             }
 
-            return null;
+            return this.moduleClient;
         }
 
         public async Task InvokeModuleDirectMethodAsync(string edgeDeviceId, string moduleId, string methodName, object body)
