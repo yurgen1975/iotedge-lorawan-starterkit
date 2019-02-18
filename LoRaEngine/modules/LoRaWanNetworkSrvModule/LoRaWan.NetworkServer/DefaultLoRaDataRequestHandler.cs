@@ -428,6 +428,7 @@ namespace LoRaWan.NetworkServer
             byte? fport = null;
             var requiresDeviceAcknowlegement = false;
             byte[] macbytes = null;
+            CidEnum macCommandType = CidEnum.Zero;
 
             byte[] rndToken = new byte[2];
             Random rnd = new Random();
@@ -437,11 +438,12 @@ namespace LoRaWan.NetworkServer
 
             if (cloudToDeviceMessage != null)
             {
-                var macCommandHolder = cloudToDeviceMessage.GetMacCommands();
-                if (macCommandHolder != null)
+                var macCommands = cloudToDeviceMessage.MACCommands;
+                if (macCommands != null)
                 {
                     Logger.Log(loRaDevice.DevEUI, "Cloud to device MAC command received", LogLevel.Information);
-                    macbytes = macCommandHolder.MacCommand[0].ToBytes();
+                    macbytes = macCommands[0].ToBytes();
+                    macCommandType = macCommands[0].Cid;
                 }
 
                 if (cloudToDeviceMessage.Confirmed)
@@ -459,7 +461,7 @@ namespace LoRaWan.NetworkServer
 
                 frmPayload = cloudToDeviceMessage.GetPayload();
 
-                Logger.Log(loRaDevice.DevEUI, $"C2D message: {Encoding.UTF8.GetString(frmPayload)}, id: {cloudToDeviceMessage.MessageId ?? "undefined"}, fport: {fport}, confirmed: {requiresDeviceAcknowlegement}, cidType: {macCommandHolder?.MacCommand?[0].Cid}", LogLevel.Information);
+                Logger.Log(loRaDevice.DevEUI, $"C2D message: {Encoding.UTF8.GetString(frmPayload)}, id: {cloudToDeviceMessage.MessageId ?? "undefined"}, fport: {fport}, confirmed: {requiresDeviceAcknowlegement}, cidType: {macCommandType}", LogLevel.Information);
 
                 // cut to the max payload of lora for any EU datarate
                 if (frmPayload.Length > 51)

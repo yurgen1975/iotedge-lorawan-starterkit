@@ -4,6 +4,7 @@
 namespace LoRaWan.NetworkServer
 {
     using System;
+    using System.Collections.Generic;
     using System.Text;
     using System.Threading.Tasks;
     using LoRaTools;
@@ -18,14 +19,14 @@ namespace LoRaWan.NetworkServer
         public byte Fport { get; set; }
 
         /// <summary>
-        /// Payload as base64 string
+        /// Gets or sets payload as base64 string
         /// Use this to send bytes
         /// </summary>
         [JsonProperty("rawPayload", NullValueHandling = NullValueHandling.Ignore)]
         public string RawPayload { get; set; }
 
         /// <summary>
-        /// Payload as string
+        /// Gets or sets payload as string
         /// Use this to send text
         /// </summary>
         [JsonProperty("payload", NullValueHandling = NullValueHandling.Ignore)]
@@ -37,12 +38,16 @@ namespace LoRaWan.NetworkServer
         [JsonProperty("messageId", NullValueHandling = NullValueHandling.Ignore)]
         public string MessageId { get; set; }
 
+        [JsonProperty("macCommands", NullValueHandling = NullValueHandling.Ignore)]
+        public IList<GenericMACCommand> MACCommands { get; set; }
+
         public Task<bool> AbandonAsync() => Task.FromResult(true);
 
         public Task<bool> CompleteAsync() => Task.FromResult(true);
 
-        public MacCommandHolder GetMacCommands() => null;
-
+        /// <summary>
+        /// Gets the payload bytes
+        /// </summary>
         public byte[] GetPayload()
         {
             if (!string.IsNullOrEmpty(this.Payload))

@@ -3,6 +3,7 @@
 
 namespace LoRaWan.NetworkServer
 {
+    using System.Collections.Generic;
     using System.Text;
     using System.Threading.Tasks;
     using LoRaTools;
@@ -17,12 +18,15 @@ namespace LoRaWan.NetworkServer
 
         string MessageId { get; }
 
+        /// <summary>
+        /// Gets list of mac commands that are part of the message
+        /// </summary>
+        IList<GenericMACCommand> MACCommands { get; }
+
         byte[] GetPayload();
 
         Task<bool> CompleteAsync();
 
         Task<bool> AbandonAsync();
-
-        MacCommandHolder GetMacCommands();
     }
 }

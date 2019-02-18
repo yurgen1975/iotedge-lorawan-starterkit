@@ -8,6 +8,7 @@ namespace LoRaWan.NetworkServer
     using System.Text;
     using System.Threading;
     using System.Threading.Tasks;
+    using LoRaTools;
     using LoRaTools.LoRaMessage;
     using LoRaTools.LoRaPhysical;
     using LoRaTools.Regions;
@@ -108,17 +109,20 @@ namespace LoRaWan.NetworkServer
             // default fport
             byte fctrl = 0;
             byte[] macbytes = null;
+            CidEnum macCommandType = CidEnum.Zero;
 
             byte[] rndToken = new byte[2];
             Random rnd = new Random();
             rnd.NextBytes(rndToken);
 
-            // if (cloudToDeviceMessage.Properties.TryGetValueCaseInsensitive("cidtype", out var cidTypeValue))
-            // {
-            //    Logger.Log(loRaDevice.DevEUI, $"Cloud to device MAC command received", LogLevel.Information);
-            //    var macCommandHolder = new MacCommandHolder(Convert.ToByte(cidTypeValue));
-            //    macbytes = macCommandHolder.MacCommand[0].ToBytes();
-            // }
+            var macCommands = cloudToDeviceMessage.MACCommands;
+            if (macCommands != null && macCommands.Count > 0)
+            {
+                Logger.Log(loRaDevice.DevEUI, $"Cloud to device MAC command received", LogLevel.Information);
+                macbytes = macCommands[0].ToBytes();
+                macCommandType = macCommands[0].Cid;
+            }
+
             if (cloudToDeviceMessage.Confirmed)
             {
                 loRaDevice.LastConfirmedC2DMessageID = cloudToDeviceMessage.MessageId ?? Constants.C2D_MSG_ID_PLACEHOLDER;
@@ -127,8 +131,7 @@ namespace LoRaWan.NetworkServer
             var frmPayload = cloudToDeviceMessage.GetPayload();
 
             Logger.Log(loRaDevice.DevEUI, $"Sending a downstream message with ID {ConversionHelper.ByteArrayToString(rndToken)}", LogLevel.Debug);
-
-            Logger.Log(loRaDevice.DevEUI, $"C2D message: {Encoding.UTF8.GetString(frmPayload)}, id: {cloudToDeviceMessage.MessageId ?? "undefined"}, fport: {cloudToDeviceMessage.Fport}, confirmed: {cloudToDeviceMessage.Confirmed}", LogLevel.Information);
+            Logger.Log(loRaDevice.DevEUI, $"C2D message: {Encoding.UTF8.GetString(frmPayload)}, id: {cloudToDeviceMessage.MessageId ?? "undefined"}, fport: {cloudToDeviceMessage.Fport}, confirmed: {cloudToDeviceMessage.Confirmed}, cidType: {macCommandType}", LogLevel.Information);
 
             // cut to the max payload of lora for any EU datarate
             if (frmPayload.Length > 51)
