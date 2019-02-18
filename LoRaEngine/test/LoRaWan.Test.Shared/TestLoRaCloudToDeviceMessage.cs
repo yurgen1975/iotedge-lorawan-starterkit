@@ -3,6 +3,8 @@
 
 namespace LoRaWan.Test.Shared
 {
+    using System.Collections.Generic;
+    using LoRaTools;
     using Newtonsoft.Json;
 
     public class TestLoRaCloudToDeviceMessage
@@ -32,5 +34,8 @@ namespace LoRaWan.Test.Shared
 
         [JsonProperty("messageId", NullValueHandling = NullValueHandling.Ignore)]
         public string MessageId { get; set; }
+
+        [JsonProperty("macCommands", NullValueHandling = NullValueHandling.Ignore)]
+        public IList<GenericMACCommand> MACCommands { get; set; }
     }
 }

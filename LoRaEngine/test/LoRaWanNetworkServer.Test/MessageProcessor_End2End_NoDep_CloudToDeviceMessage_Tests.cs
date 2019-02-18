@@ -144,8 +144,13 @@ namespace LoRaWan.NetworkServer.Test
             this.LoRaDeviceClient.Setup(x => x.UpdateReportedPropertiesAsync(It.IsNotNull<TwinCollection>()))
                 .ReturnsAsync(true);
 
-            var cloudToDeviceMessage = new Message(Encoding.UTF8.GetBytes("c2d"));
-            cloudToDeviceMessage.Properties[Constants.FPORT_MSG_PROPERTY_KEY] = "1";
+            var cloudToDeviceMessageBody = new LoRaCloudToDeviceMessage()
+            {
+                Fport = 1,
+                Payload = "c2d"
+            };
+
+            var cloudToDeviceMessage = cloudToDeviceMessageBody.CreateMessage();
             this.LoRaDeviceClient.SetupSequence(x => x.ReceiveAsync(It.IsAny<TimeSpan>()))
                 .ReturnsAsync(cloudToDeviceMessage)
                 .ReturnsAsync((Message)null); // 2nd cloud to device message does not return anything
@@ -214,8 +219,9 @@ namespace LoRaWan.NetworkServer.Test
             this.LoRaDeviceClient.Setup(x => x.UpdateReportedPropertiesAsync(It.IsNotNull<TwinCollection>()))
                 .ReturnsAsync(true);
 
-            var cloudToDeviceMessage = new Message(Encoding.UTF8.GetBytes("c2d"));
-            cloudToDeviceMessage.Properties[Constants.FPORT_MSG_PROPERTY_KEY] = "1";
+            var cloudToDeviceMessage = new LoRaCloudToDeviceMessage() { Payload = "c2d", Fport = 1 }
+                .CreateMessage();
+
             this.LoRaDeviceClient.SetupSequence(x => x.ReceiveAsync(It.IsAny<TimeSpan>()))
                 .ReturnsAsync(cloudToDeviceMessage)
                 .ReturnsAsync((Message)null); // 2nd cloud to device message does not return anything
@@ -289,8 +295,9 @@ namespace LoRaWan.NetworkServer.Test
             this.LoRaDeviceClient.Setup(x => x.UpdateReportedPropertiesAsync(It.IsNotNull<TwinCollection>()))
                 .ReturnsAsync(true);
 
-            var cloudToDeviceMessage = new Message(Encoding.UTF8.GetBytes("c2d"));
-            cloudToDeviceMessage.Properties[Constants.FPORT_MSG_PROPERTY_KEY] = "1";
+            var cloudToDeviceMessage = new LoRaCloudToDeviceMessage() { Payload = "c2d", Fport = 1 }
+                .CreateMessage();
+
             this.LoRaDeviceClient.SetupSequence(x => x.ReceiveAsync(It.IsAny<TimeSpan>()))
                 .ReturnsAsync(cloudToDeviceMessage)
                 .ReturnsAsync((Message)null); // 2nd cloud to device message does not return anything
@@ -383,8 +390,9 @@ namespace LoRaWan.NetworkServer.Test
             this.LoRaDeviceClient.Setup(x => x.UpdateReportedPropertiesAsync(It.IsNotNull<TwinCollection>()))
                 .ReturnsAsync(true);
 
-            var cloudToDeviceMessage = new Message(Encoding.UTF8.GetBytes("c2d"));
-            cloudToDeviceMessage.Properties[Constants.FPORT_MSG_PROPERTY_KEY] = "1";
+            var cloudToDeviceMessage = new LoRaCloudToDeviceMessage() { Payload = "c2d", Fport = 1 }
+                .CreateMessage();
+
             this.LoRaDeviceClient.SetupSequence(x => x.ReceiveAsync(It.IsAny<TimeSpan>()))
                 .ReturnsAsync(cloudToDeviceMessage)
                 .Returns(this.EmptyAdditionalMessageReceiveAsync);
@@ -483,8 +491,9 @@ namespace LoRaWan.NetworkServer.Test
             this.LoRaDeviceClient.Setup(x => x.UpdateReportedPropertiesAsync(It.IsNotNull<TwinCollection>()))
                 .ReturnsAsync(true);
 
-            var cloudToDeviceMessage = new Message(Encoding.UTF8.GetBytes("c2d"));
-            cloudToDeviceMessage.Properties[Constants.FPORT_MSG_PROPERTY_KEY] = "1";
+            var cloudToDeviceMessage = new LoRaCloudToDeviceMessage() { Payload = "c2d", Fport = 1 }
+                .CreateMessage();
+
             this.LoRaDeviceClient.SetupSequence(x => x.ReceiveAsync(It.IsAny<TimeSpan>()))
                 .ReturnsAsync(cloudToDeviceMessage)
                 .Returns(this.EmptyAdditionalMessageReceiveAsync); // 2nd cloud to device message does not return anything
@@ -595,8 +604,8 @@ namespace LoRaWan.NetworkServer.Test
                 sentEventAsyncSetup.ReturnsAsync(true);
             }
 
-            var cloudToDeviceMessage = new Message(Encoding.UTF8.GetBytes("c2d"));
-            cloudToDeviceMessage.Properties[Constants.FPORT_MSG_PROPERTY_KEY] = "1";
+            var cloudToDeviceMessage = new LoRaCloudToDeviceMessage() { Payload = "c2d", Fport = 1 }
+                .CreateMessage();
 
             this.LoRaDeviceClient.Setup(x => x.ReceiveAsync(It.IsInRange<TimeSpan>(TimeSpan.FromMilliseconds(checkMinDuration), TimeSpan.FromMilliseconds(checkMaxDuration), Range.Inclusive)))
                 .ReturnsAsync(cloudToDeviceMessage);

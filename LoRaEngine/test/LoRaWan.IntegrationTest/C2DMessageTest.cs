@@ -77,7 +77,14 @@ namespace LoRaWan.IntegrationTest
 
             // sends C2D - between 10 and 99
             var c2dMessageBody = (100 + random.Next(90)).ToString();
-            await this.TestFixtureCi.SendCloudToDeviceMessage(device.DeviceID, c2dMessageBody, new Dictionary<string, string> { { FportPropertyName, "1" } });
+            var c2dMessage = new TestLoRaCloudToDeviceMessage()
+            {
+                Payload = c2dMessageBody,
+                Fport = 1,
+                MessageId = Guid.NewGuid().ToString(),
+            };
+
+            await this.TestFixtureCi.SendCloudToDeviceMessageAsync(device.DeviceID, c2dMessage);
             this.Log($"Message {c2dMessageBody} sent to device, need to check if it receives");
 
             var foundC2DMessage = false;
@@ -180,7 +187,14 @@ namespace LoRaWan.IntegrationTest
 
             // sends C2D - between 10 and 99
             var c2dMessageBody = (100 + random.Next(90)).ToString();
-            await this.TestFixtureCi.SendCloudToDeviceMessage(device.DeviceID, c2dMessageBody, new Dictionary<string, string> { { FportPropertyName, "1" } });
+            var c2dMessage = new TestLoRaCloudToDeviceMessage()
+            {
+                Payload = c2dMessageBody,
+                Fport = 1,
+                MessageId = Guid.NewGuid().ToString(),
+            };
+
+            await this.TestFixtureCi.SendCloudToDeviceMessageAsync(device.DeviceID, c2dMessage);
             this.Log($"Message {c2dMessageBody} sent to device, need to check if it receives");
 
             var foundC2DMessage = false;
@@ -282,7 +296,14 @@ namespace LoRaWan.IntegrationTest
 
             // sends C2D - between 10 and 99
             var c2dMessageBody = (100 + random.Next(90)).ToString();
-            await this.TestFixtureCi.SendCloudToDeviceMessage(device.DeviceID, c2dMessageBody, new Dictionary<string, string>() { { FportPropertyName, "2" } });
+            var c2dMessage = new TestLoRaCloudToDeviceMessage()
+            {
+                Payload = c2dMessageBody,
+                Fport = 2,
+                MessageId = Guid.NewGuid().ToString(),
+            };
+
+            await this.TestFixtureCi.SendCloudToDeviceMessageAsync(device.DeviceID, c2dMessage);
             this.Log($"Message {c2dMessageBody} sent to device, need to check if it receives");
 
             var foundC2DMessage = false;
@@ -384,11 +405,15 @@ namespace LoRaWan.IntegrationTest
             // sends C2D - between 10 and 99
             var c2dMessageBody = (100 + random.Next(90)).ToString();
             var msgId = Guid.NewGuid().ToString();
-            await this.TestFixtureCi.SendCloudToDeviceMessage(device.DeviceID, msgId, c2dMessageBody, new Dictionary<string, string>()
+            var c2dMessage = new TestLoRaCloudToDeviceMessage()
             {
-                { FportPropertyName, "1" },
-                { ConfirmedPropertyName, "true" }
-            });
+                Payload = c2dMessageBody,
+                Fport = 1,
+                MessageId = msgId,
+                Confirmed = true,
+            };
+
+            await this.TestFixtureCi.SendCloudToDeviceMessageAsync(device.DeviceID, c2dMessage);
             this.Log($"Message {c2dMessageBody} sent to device, need to check if it receives");
 
             var foundC2DMessage = false;
@@ -488,11 +513,15 @@ namespace LoRaWan.IntegrationTest
             // sends C2D - between 10 and 99
             var c2dMessageBody = (100 + random.Next(90)).ToString();
             var msgId = Guid.NewGuid().ToString();
-            await this.TestFixtureCi.SendCloudToDeviceMessage(device.DeviceID, msgId, c2dMessageBody, new Dictionary<string, string>()
+            var c2dMessage = new TestLoRaCloudToDeviceMessage()
             {
-                { FportPropertyName, "1" },
-                { ConfirmedPropertyName, "true" },
-            });
+                Payload = c2dMessageBody,
+                Fport = 1,
+                MessageId = msgId,
+                Confirmed = true,
+            };
+
+            await this.TestFixtureCi.SendCloudToDeviceMessageAsync(device.DeviceID, c2dMessage);
 
             this.Log($"Message {c2dMessageBody} sent to device, need to check if it receives");
 

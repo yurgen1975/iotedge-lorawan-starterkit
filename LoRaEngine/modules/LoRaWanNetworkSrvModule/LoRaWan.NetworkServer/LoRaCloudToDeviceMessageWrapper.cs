@@ -3,12 +3,10 @@
 
 namespace LoRaWan.NetworkServer
 {
-    using System;
     using System.Collections.Generic;
     using System.Text;
     using System.Threading.Tasks;
     using LoRaTools;
-    using LoRaTools.Utils;
     using Microsoft.Azure.Devices.Client;
     using Microsoft.Extensions.Logging;
     using Newtonsoft.Json;
@@ -55,11 +53,6 @@ namespace LoRaWan.NetworkServer
                 if (this.parseCloudToDeviceMessage != null)
                     return this.parseCloudToDeviceMessage.Fport;
 
-                if (this.message.Properties.TryGetValueCaseInsensitive("fport", out var fPortValue))
-                {
-                    return byte.Parse(fPortValue);
-                }
-
                 return 0;
             }
         }
@@ -71,7 +64,7 @@ namespace LoRaWan.NetworkServer
                 if (this.parseCloudToDeviceMessage != null)
                     return this.parseCloudToDeviceMessage.Confirmed;
 
-                return this.message.Properties.TryGetValueCaseInsensitive("confirmed", out var confirmedValue) && confirmedValue.Equals("true", StringComparison.OrdinalIgnoreCase);
+                return false;
             }
         }
 
@@ -84,7 +77,7 @@ namespace LoRaWan.NetworkServer
             if (this.parseCloudToDeviceMessage != null)
                 return this.parseCloudToDeviceMessage.GetPayload();
 
-            return this.message.GetBytes();
+            return new byte[0];
         }
 
         public IList<GenericMACCommand> MACCommands
@@ -94,11 +87,6 @@ namespace LoRaWan.NetworkServer
                 if (this.parseCloudToDeviceMessage != null)
                 {
                     return this.parseCloudToDeviceMessage.MACCommands;
-                }
-
-                if (this.message.Properties.TryGetValueCaseInsensitive("cidtype", out var cidTypeValue))
-                {
-                    return new MacCommandHolder(Convert.ToByte(cidTypeValue)).MacCommand;
                 }
 
                 return null;

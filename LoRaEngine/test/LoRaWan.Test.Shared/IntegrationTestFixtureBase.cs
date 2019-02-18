@@ -129,9 +129,21 @@ namespace LoRaWan.Test.Shared
             return await this.GetRegistryManager().GetTwinAsync(deviceId);
         }
 
-        public Task SendCloudToDeviceMessage(string deviceId, string messageText, Dictionary<string, string> messageProperties = null) => this.SendCloudToDeviceMessage(deviceId, null, messageText, messageProperties);
+        public async Task SendCloudToDeviceMessageAsync(string deviceId, TestLoRaCloudToDeviceMessage message)
+        {
+            var msg = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(message)));
 
-        public async Task SendCloudToDeviceMessage(string deviceId, string messageId, string messageText, Dictionary<string, string> messageProperties = null)
+            if (!string.IsNullOrEmpty(message.MessageId))
+            {
+                msg.MessageId = message.MessageId;
+            }
+
+            await this.SendCloudToDeviceMessageAsync(deviceId, msg);
+        }
+
+        public Task SendCloudToDeviceMessageAsync(string deviceId, string messageText, Dictionary<string, string> messageProperties = null) => this.SendCloudToDeviceMessageAsync(deviceId, null, messageText, messageProperties);
+
+        public async Task SendCloudToDeviceMessageAsync(string deviceId, string messageId, string messageText, Dictionary<string, string> messageProperties = null)
         {
             var msg = new Message(Encoding.UTF8.GetBytes(messageText));
             if (messageProperties != null)
@@ -147,12 +159,12 @@ namespace LoRaWan.Test.Shared
                 msg.MessageId = messageId;
             }
 
-            await this.SendCloudToDeviceMessage(deviceId, msg);
+            await this.SendCloudToDeviceMessageAsync(deviceId, msg);
         }
 
         ServiceClient GetServiceClient() => this.serviceClient.Value;
 
-        public async Task SendCloudToDeviceMessage(string deviceId, Message message)
+        public async Task SendCloudToDeviceMessageAsync(string deviceId, Message message)
         {
             await this.GetServiceClient().SendAsync(deviceId, message);
         }
@@ -161,7 +173,6 @@ namespace LoRaWan.Test.Shared
         /// Singleton for the module client
         /// Does not have to be thread-safe as CI does not run tests in parallel
         /// </summary>
-        /// <returns></returns>
         public async Task<Microsoft.Azure.Devices.Client.ModuleClient> GetModuleClientAsync()
         {
             if (this.moduleClient == null)

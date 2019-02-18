@@ -8,7 +8,9 @@ namespace LoRaWan.NetworkServer.Test
     using System.Text;
     using LoRaWan.NetworkServer;
     using LoRaWan.Test.Shared;
+    using Microsoft.Azure.Devices.Client;
     using Microsoft.Azure.Devices.Shared;
+    using Newtonsoft.Json;
 
     internal static class TestUtils
     {
@@ -118,6 +120,19 @@ namespace LoRaWan.NetworkServer.Test
             };
 
             return CreateTwin(desired: finalDesiredProperties, reported: reported);
+        }
+
+        /// <summary>
+        /// Helper to create a <see cref="Message"/> from a <see cref="LoRaCloudToDeviceMessage"/>
+        /// </summary>
+        public static Message CreateMessage(this LoRaCloudToDeviceMessage loRaMessage)
+        {
+            var message = new Message(Encoding.UTF8.GetBytes(JsonConvert.SerializeObject(loRaMessage)))
+            {
+                ContentType = "application/json",
+            };
+
+            return message;
         }
     }
 }
