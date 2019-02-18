@@ -97,12 +97,7 @@ namespace LoRaWan.NetworkServer
             this.deviceRegistry.GetLoRaRequestQueue(request).Queue(request);
         }
 
-        bool IsValidNetId(byte devAddrNwkid, uint netId)
-        {
-            var netIdBytes = BitConverter.GetBytes(netId);
-            devAddrNwkid = (byte)(devAddrNwkid >> 1);
-            return devAddrNwkid == (netIdBytes[0] & 0b01111111);
-        }
+        bool IsValidNetId(byte devAddrNwkid, uint netId) => true;
 
         /// <summary>
         /// Process OTAA join request
