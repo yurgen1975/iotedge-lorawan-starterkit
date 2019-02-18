@@ -497,7 +497,10 @@ namespace LoRaWan.NetworkServer
             {
                 if (this.runningRequest == null)
                 {
-                    this.StartNextRequest(request);
+                    this.runningRequest = request;
+
+                    // Ensure that this is schedule in a new thread, releasing the lock asap
+                    Task.Run(() => { _ = this.RunAndQueueNext(request); });
                 }
                 else
                 {
@@ -515,50 +518,45 @@ namespace LoRaWan.NetworkServer
                 this.runningRequest = null;
                 if (this.queuedRequests.TryDequeue(out var nextRequest))
                 {
-                    this.StartNextRequest(nextRequest);
+                    this.runningRequest = nextRequest;
+
+                    // Ensure that this is schedule in a new thread, releasing the lock asap
+                    Task.Run(() => { _ = this.RunAndQueueNext(nextRequest); });
                 }
             }
         }
 
-        void StartNextRequest(LoRaRequest requestToStart)
+        async Task RunAndQueueNext(LoRaRequest request)
         {
-            async Task RunAndQueueNext(LoRaRequest request)
+            LoRaDeviceRequestProcessResult result = null;
+            Exception processingError = null;
+
+            try
             {
-                LoRaDeviceRequestProcessResult result = null;
-                Exception processingError = null;
-
-                try
-                {
-                    result = await this.dataRequestHandler.ProcessRequestAsync(request, this);
-                }
-                catch (Exception ex)
-                {
-                    Logger.Log(this.DevEUI, $"Error processing request: {ex.Message}", LogLevel.Error);
-                    processingError = ex;
-                }
-                finally
-                {
-                    this.ProcessNext();
-                }
-
-                if (processingError != null)
-                {
-                    request.NotifyFailed(this, processingError);
-                }
-                else if (result.FailedReason.HasValue)
-                {
-                    request.NotifyFailed(this, result.FailedReason.Value);
-                }
-                else
-                {
-                    request.NotifySucceeded(this, result?.DownlinkMessage);
-                }
+                result = await this.dataRequestHandler.ProcessRequestAsync(request, this);
+            }
+            catch (Exception ex)
+            {
+                Logger.Log(this.DevEUI, $"Error processing request: {ex.Message}", LogLevel.Error);
+                processingError = ex;
+            }
+            finally
+            {
+                this.ProcessNext();
             }
 
-            this.runningRequest = requestToStart;
-
-            // Ensure that this is schedule in a new thread, releasing the lock asap
-            Task.Run(() => { _ = RunAndQueueNext(requestToStart); });
+            if (processingError != null)
+            {
+                request.NotifyFailed(this, processingError);
+            }
+            else if (result.FailedReason.HasValue)
+            {
+                request.NotifyFailed(this, result.FailedReason.Value);
+            }
+            else
+            {
+                request.NotifySucceeded(this, result?.DownlinkMessage);
+            }
         }
 
         public void Dispose()

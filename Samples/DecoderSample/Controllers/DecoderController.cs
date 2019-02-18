@@ -27,7 +27,7 @@ namespace SensorDecoderModule.Controllers
 
             if (toInvoke != null)
             {
-                var decoderResult = (DecodePayloadResult)toInvoke.Invoke(null, new object[] { devEUI, Convert.FromBase64String(payload), Convert.ToByte(fport) });
+                var decoderResult = (string)toInvoke.Invoke(null, new object[] { devEUI, Convert.FromBase64String(payload), Convert.ToByte(fport) });
                 return this.Ok(decoderResult);
             }
             else

@@ -206,9 +206,6 @@ namespace LoRaWan.NetworkServer.Test
             this.LoRaDeviceClient.Setup(x => x.SendEventAsync(It.IsNotNull<LoRaDeviceTelemetry>(), null))
                 .ReturnsAsync(true);
 
-            this.LoRaDeviceClient.Setup(x => x.UpdateReportedPropertiesAsync(It.IsNotNull<TwinCollection>()))
-                .ReturnsAsync(true);
-
             this.LoRaDeviceClient.Setup(x => x.ReceiveAsync(It.IsAny<TimeSpan>()))
                 .ReturnsAsync((Message)null);
 
@@ -269,8 +266,8 @@ namespace LoRaWan.NetworkServer.Test
             // 5. Frame counter down is unchanged
             Assert.Equal(InitialDeviceFcntDown, loraDevice.FCntDown);
 
-            // 6. Frame count has no pending changes
-            Assert.False(loraDevice.HasFrameCountChanges);
+            // 6. Frame count has pending changes
+            Assert.True(loraDevice.HasFrameCountChanges);
 
             // Ensure the message was sent
             Assert.True(await c2dMessageSent.WaitAsync(10 * 1000));

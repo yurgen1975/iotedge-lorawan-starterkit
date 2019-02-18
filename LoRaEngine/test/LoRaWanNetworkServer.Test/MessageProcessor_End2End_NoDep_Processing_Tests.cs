@@ -1213,5 +1213,49 @@ namespace LoRaWan.NetworkServer.Test
             this.LoRaDeviceApi.VerifyAll();
             payloadDecoder.VerifyAll();
         }
+
+        [Theory]
+        [InlineData(10, 9)]
+        [InlineData(10, 10)]
+        public async Task When_Upstream_Fcnt_Is_Lower_Or_Equal_To_Device_Should_Discard_Message(int devFcntUp, int payloadFcnt)
+        {
+            var simulatedDevice = new SimulatedDevice(TestDeviceInfo.CreateABPDevice(1, gatewayID: ServerGatewayID));
+            simulatedDevice.FrmCntUp = devFcntUp;
+
+            var devEUI = simulatedDevice.LoRaDevice.DeviceID;
+            var devAddr = simulatedDevice.LoRaDevice.DevAddr;
+
+            var cachedDevice = this.CreateLoRaDevice(simulatedDevice);
+            var deviceRegistry = new LoRaDeviceRegistry(this.ServerConfiguration, this.NewNonEmptyCache(cachedDevice), this.LoRaDeviceApi.Object, this.LoRaDeviceFactory);
+
+            var messageDispatcher = new MessageDispatcher(
+                this.ServerConfiguration,
+                deviceRegistry,
+                this.FrameCounterUpdateStrategyProvider);
+
+            // sends unconfirmed message
+            var unconfirmedMessagePayload = simulatedDevice.CreateUnconfirmedDataUpMessage("hello", fcnt: payloadFcnt);
+            var rxpk = unconfirmedMessagePayload.SerializeUplink(simulatedDevice.AppSKey, simulatedDevice.NwkSKey).Rxpk[0];
+            var request = new WaitableLoRaRequest(rxpk, this.PacketForwarder);
+            messageDispatcher.DispatchRequest(request);
+            Assert.True(await request.WaitCompleteAsync());
+            Assert.Null(request.ResponseDownlink);
+            Assert.True(request.ProcessingFailed);
+            Assert.Equal(LoRaDeviceRequestFailedReason.InvalidFrameCounter, request.ProcessingFailedReason);
+
+            // verify that the device in device registry has correct properties and frame counters
+            var devicesForDevAddr = deviceRegistry.InternalGetCachedDevicesForDevAddr(devAddr);
+            Assert.Single(devicesForDevAddr);
+            Assert.True(devicesForDevAddr.TryGetValue(devEUI, out var loRaDevice));
+            Assert.Equal(devAddr, loRaDevice.DevAddr);
+            Assert.Equal(devEUI, loRaDevice.DevEUI);
+            Assert.True(loRaDevice.IsABP);
+            Assert.Equal(devFcntUp, loRaDevice.FCntUp);
+            Assert.Equal(0, loRaDevice.FCntDown); // fctn down will always be set to zero
+            Assert.False(loRaDevice.HasFrameCountChanges); // no changes
+
+            this.LoRaDeviceClient.VerifyAll();
+            this.LoRaDeviceApi.VerifyAll();
+        }
     }
 }

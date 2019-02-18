@@ -9,7 +9,7 @@ namespace SensorDecoderModule.Classes
 
     internal static class LoraDecoders
     {
-        private static DecodePayloadResult DecoderValueSensor(string devEUI, byte[] payload, byte fport)
+        private static string DecoderValueSensor(string devEUI, byte[] payload, byte fport)
         {
             // EITHER: Convert a payload containing a string back to string format for further processing
             var result = Encoding.UTF8.GetString(payload);
@@ -20,20 +20,22 @@ namespace SensorDecoderModule.Classes
             // Write code that decodes the payload here.
 
             // Return a JSON string containing the decoded data
-            return new DecodePayloadResult(result);
+            return JsonConvert.SerializeObject(new { value = result });
+
         }
 
-        private static DecodePayloadResult RelayToClassC(string devEUI, byte[] payload, byte fport)
+        private static string RelayToClassC(string devEUI, byte[] payload, byte fport)
         {
             // EITHER: Convert a payload containing a string back to string format for further processing
-            var result = Encoding.UTF8.GetString(payload);
+            var decodedValue = Encoding.UTF8.GetString(payload);
 
             // Write code that decodes the payload here.
 
             // Return a JSON string containing the decoded data
-            return new DecodePayloadResult(result)
+            var resultObject = new 
             {
-                CloudToDeviceMessage = new LoRaCloudToDeviceMessage()
+                value = decodedValue,
+                cloudToDeviceMessage = new LoRaCloudToDeviceMessage()
                 {
                     DevEUI = "FBE00000000CCCCC",
                     Body = payload,
@@ -42,6 +44,10 @@ namespace SensorDecoderModule.Classes
                     MessageId = Guid.NewGuid().ToString(),
                 }
             };
+
+            // Return a JSON string containing the decoded data
+            return JsonConvert.SerializeObject(resultObject);
+
         }
     }
 }

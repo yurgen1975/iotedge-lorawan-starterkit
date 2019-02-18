@@ -29,8 +29,10 @@ namespace LoRaWan.NetworkServer.Test
                 GatewayID = simulatedDevice.LoRaDevice.GatewayID,
                 IsOurDevice = true,
             };
+
             result.SetFcntDown(simulatedDevice.FrmCntDown);
             result.SetFcntUp(simulatedDevice.FrmCntUp);
+            result.AcceptFrameCountChanges();
 
             if (requestHandler != null)
                 result.SetRequestHandler(requestHandler);
