@@ -87,7 +87,9 @@ namespace LoRaWan.NetworkServer
         void DispatchLoRaDataMessage(LoRaRequest request)
         {
             var loRaPayload = (LoRaPayloadData)request.Payload;
-            if (!this.IsValidNetId(loRaPayload.GetDevAddrNetID(), this.configuration.NetId))
+            
+            // Change for AAEON
+            if (!this.IsValidNetId(loRaPayload.GetDevAddrNetID(), this.configuration.NetId, loRaPayload.DevAddr))
             {
                 Logger.Log(ConversionHelper.ByteArrayToString(loRaPayload.DevAddr), $"device is using another network id, ignoring this message (network: {this.configuration.NetId}, devAddr: {loRaPayload.GetDevAddrNetID()})", LogLevel.Debug);
                 request.NotifyFailed(null, LoRaDeviceRequestFailedReason.InvalidNetId);
@@ -97,7 +99,28 @@ namespace LoRaWan.NetworkServer
             this.deviceRegistry.GetLoRaRequestQueue(request).Queue(request);
         }
 
-        bool IsValidNetId(byte devAddrNwkid, uint netId) => true;
+        // Change for AAEON
+        bool IsValidNetId(byte devAddrNwkid, uint netId, Memory<byte> devAddr)
+        {
+            var netIdBytes = BitConverter.GetBytes(netId);
+            devAddrNwkid = (byte)(devAddrNwkid >> 1);
+
+            var isValidNetId = devAddrNwkid == (netIdBytes[0] & 0b01111111);
+            var isValidDevAddr = false;
+
+            if (!isValidNetId)
+            {
+                var devAddrString = ConversionHelper.ByteArrayToString(devAddr);
+
+                // Get list of our DevAddr and return true if we have a match.
+                if (this.configuration.DevAddrList.Contains(devAddrString))
+                {
+                    isValidDevAddr = true;
+                }
+            }
+
+            return (isValidNetId || isValidDevAddr) ? true : false;
+        }
 
         /// <summary>
         /// Process OTAA join request

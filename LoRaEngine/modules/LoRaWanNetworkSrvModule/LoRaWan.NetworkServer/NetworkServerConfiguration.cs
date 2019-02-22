@@ -70,6 +70,9 @@ namespace LoRaWan.NetworkServer
         // Gets/sets gateway NetId
         public uint NetId { get; set; } = 1;
 
+        // Comma separated list of all DevAddr that belong to the solution
+        public string DevAddrList { get; set; }
+
         // Creates a new instance of NetworkServerConfiguration
         public NetworkServerConfiguration()
         {
@@ -101,6 +104,7 @@ namespace LoRaWan.NetworkServer
             config.LogToUdpAddress = envVars.GetEnvVar("LOG_TO_UDP_ADDRESS", string.Empty);
             config.LogToUdpPort = envVars.GetEnvVar("LOG_TO_UDP_PORT", config.LogToUdpPort);
             config.NetId = envVars.GetEnvVar("NETID", config.NetId);
+            config.DevAddrList = envVars.GetEnvVar("DEVADDR_LIST", config.DevAddrList);
 
             return config;
         }
