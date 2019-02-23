@@ -4,24 +4,23 @@
 namespace LoraKeysManagerFacade
 {
     using System;
-    using System.IO;
-    using System.Linq;
-    using System.Threading.Tasks;
-    using LoRaWan.Shared;
     using Microsoft.AspNetCore.Http;
     using Microsoft.AspNetCore.Mvc;
     using Microsoft.Azure.WebJobs;
     using Microsoft.Azure.WebJobs.Extensions.Http;
-    using Microsoft.Azure.WebJobs.Host;
-    using Microsoft.Extensions.Configuration;
     using Microsoft.Extensions.Logging;
-    using Newtonsoft.Json;
-    using StackExchange.Redis;
 
-    public static class FCntCacheCheck
+    public class FCntCacheCheck
     {
+        private readonly ILoRaDeviceCacheStore cacheStore;
+
+        public FCntCacheCheck(ILoRaDeviceCacheStore cacheStore)
+        {
+            this.cacheStore = cacheStore;
+        }
+
         [FunctionName("NextFCntDown")]
-        public static IActionResult NextFCntDownInvoke([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, ILogger log, ExecutionContext context)
+        public IActionResult NextFCntDownInvoke([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req)
         {
             try
             {
@@ -41,7 +40,11 @@ namespace LoraKeysManagerFacade
 
             if (!string.IsNullOrEmpty(abpFcntCacheReset))
             {
-                LoRaDeviceCache.Delete(devEUI, context);
+                using (var deviceCache = new LoRaDeviceCache(this.cacheStore, devEUI, string.Empty))
+                {
+                    deviceCache.Delete(devEUI);
+                }
+
                 return (ActionResult)new OkObjectResult(null);
             }
 
@@ -55,15 +58,15 @@ namespace LoraKeysManagerFacade
                 throw new ArgumentException(errorMsg);
             }
 
-            newFCntDown = GetNextFCntDown(devEUI, gatewayId, clientFCntUp, clientFCntDown, context);
+            newFCntDown = this.GetNextFCntDown(devEUI, gatewayId, clientFCntUp, clientFCntDown);
 
             return (ActionResult)new OkObjectResult(newFCntDown);
         }
 
-        public static int GetNextFCntDown(string devEUI, string gatewayId, int clientFCntUp, int clientFCntDown, ExecutionContext context)
+        public int GetNextFCntDown(string devEUI, string gatewayId, int clientFCntUp, int clientFCntDown)
         {
             int newFCntDown = 0;
-            using (var deviceCache = LoRaDeviceCache.Create(context, devEUI, gatewayId))
+            using (var deviceCache = new LoRaDeviceCache(this.cacheStore, devEUI, gatewayId))
             {
                 if (deviceCache.TryToLock())
                 {

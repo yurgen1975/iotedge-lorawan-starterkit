@@ -26,6 +26,12 @@ namespace LoraKeysManagerFacade
             this.redisCache = redis.GetDatabase();
         }
 
+        public LoRaDeviceCacheRedisStore(string redisConnectionString)
+        {
+            var redis = ConnectionMultiplexer.Connect(redisConnectionString);
+            this.redisCache = redis.GetDatabase();
+        }
+
         public bool LockTake(string key, string value, TimeSpan timeout)
         {
             return this.redisCache.LockTake(key, value, timeout);

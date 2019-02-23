@@ -1,4 +1,4 @@
-﻿// Copyright (c) Microsoft. All rights reserved.
+// Copyright (c) Microsoft. All rights reserved.
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 
 namespace LoraKeysManagerFacade
@@ -17,13 +17,23 @@ namespace LoraKeysManagerFacade
     using Newtonsoft.Json;
     using StackExchange.Redis;
 
-    public static class DeviceGetter
+    public class DeviceGetter
     {
+        private readonly RegistryManager registryManager;
+
+        private readonly ILoRaDeviceCacheStore deviceCacheStore;
+
+        public DeviceGetter(RegistryManager registryManager, ILoRaDeviceCacheStore deviceCacheStore)
+        {
+            this.deviceCacheStore = deviceCacheStore;
+            this.registryManager = registryManager;
+        }
+
         /// <summary>
         /// Entry point function for getting devices
         /// </summary>
         [FunctionName(nameof(GetDevice))]
-        public static async Task<IActionResult> GetDevice([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, ILogger log, ExecutionContext context)
+        public async Task<IActionResult> GetDevice([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req, ILogger logger)
         {
             try
             {
@@ -31,7 +41,7 @@ namespace LoraKeysManagerFacade
             }
             catch (IncompatibleVersionException ex)
             {
-                return new BadRequestObjectResult(ex);
+                return new BadRequestObjectResult(ex.Message);
             }
 
             // ABP parameters
@@ -44,7 +54,7 @@ namespace LoraKeysManagerFacade
 
             try
             {
-                var results = await GetDeviceList(devEUI, gatewayId, devNonce, devAddr, context);
+                List<IoTHubDeviceInfo> results = await this.GetDeviceList(devEUI, gatewayId, devNonce, devAddr);
                 string json = JsonConvert.SerializeObject(results);
                 return new OkObjectResult(json);
             }
@@ -54,16 +64,15 @@ namespace LoraKeysManagerFacade
             }
         }
 
-        public static async Task<List<IoTHubDeviceInfo>> GetDeviceList(string devEUI, string gatewayId, string devNonce, string devAddr, ExecutionContext context)
+        public async Task<List<IoTHubDeviceInfo>> GetDeviceList(string devEUI, string gatewayId, string devNonce, string devAddr)
         {
-            var results = new List<IoTHubDeviceInfo>();
-            var registryManager = LoRaRegistryManager.GetCurrentInstance(context.FunctionAppDirectory);
+            List<IoTHubDeviceInfo> results = new List<IoTHubDeviceInfo>();
 
             if (devEUI != null)
             {
                 // OTAA join
                 string cacheKey = devEUI + devNonce;
-                using (var deviceCache = LoRaDeviceCache.Create(context, devEUI, gatewayId, cacheKey))
+                using (LoRaDeviceCache deviceCache = new LoRaDeviceCache(this.deviceCacheStore, devEUI, gatewayId, cacheKey))
                 {
                     if (deviceCache.TryToLock(cacheKey + "joinlock"))
                     {
@@ -74,19 +83,19 @@ namespace LoraKeysManagerFacade
 
                         deviceCache.SetValue(devNonce, TimeSpan.FromMinutes(1));
 
-                        var device = await registryManager.GetDeviceAsync(devEUI);
+                        Device device = await this.registryManager.GetDeviceAsync(devEUI);
 
                         if (device != null)
                         {
-                            var iotHubDeviceInfo = new IoTHubDeviceInfo
+                            IoTHubDeviceInfo iotHubDeviceInfo = new IoTHubDeviceInfo
                             {
-                                DevEUI = devEUI,
-                                PrimaryKey = device.Authentication.SymmetricKey.PrimaryKey
+                            DevEUI = devEUI,
+                            PrimaryKey = device.Authentication.SymmetricKey.PrimaryKey
                             };
                             results.Add(iotHubDeviceInfo);
 
                             // clear device FCnt cache after join
-                            LoRaDeviceCache.Delete(devEUI, context);
+                            deviceCache.Delete(devEUI);
                         }
                     }
                 }
@@ -98,17 +107,17 @@ namespace LoraKeysManagerFacade
                 // TODO check for sql injection
                 devAddr = devAddr.Replace('\'', ' ');
 
-                var query = registryManager.CreateQuery($"SELECT * FROM devices WHERE properties.desired.DevAddr = '{devAddr}' OR properties.reported.DevAddr ='{devAddr}'", 100);
+                IQuery query = this.registryManager.CreateQuery($"SELECT * FROM devices WHERE properties.desired.DevAddr = '{devAddr}' OR properties.reported.DevAddr ='{devAddr}'", 100);
                 while (query.HasMoreResults)
                 {
-                    var page = await query.GetNextAsTwinAsync();
+                    IEnumerable<Microsoft.Azure.Devices.Shared.Twin> page = await query.GetNextAsTwinAsync();
 
-                    foreach (var twin in page)
+                    foreach (Microsoft.Azure.Devices.Shared.Twin twin in page)
                     {
                         if (twin.DeviceId != null)
                         {
-                            var device = await registryManager.GetDeviceAsync(twin.DeviceId);
-                            var iotHubDeviceInfo = new IoTHubDeviceInfo
+                            Device device = await this.registryManager.GetDeviceAsync(twin.DeviceId);
+                            IoTHubDeviceInfo iotHubDeviceInfo = new IoTHubDeviceInfo
                             {
                                 DevAddr = devAddr,
                                 DevEUI = twin.DeviceId,

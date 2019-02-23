@@ -4,11 +4,26 @@
 namespace LoraKeysManagerFacade
 {
     using System;
+    using System.Runtime.Serialization;
 
     public class IncompatibleVersionException : Exception
     {
+        public IncompatibleVersionException()
+        {
+        }
+
         public IncompatibleVersionException(string message)
             : base(message)
+        {
+        }
+
+        public IncompatibleVersionException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+
+        protected IncompatibleVersionException(SerializationInfo info, StreamingContext context)
+            : base(info, context)
         {
         }
     }

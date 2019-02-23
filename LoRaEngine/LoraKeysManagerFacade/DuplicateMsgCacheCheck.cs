@@ -11,16 +11,22 @@ namespace LoraKeysManagerFacade
     using Microsoft.Azure.WebJobs.Extensions.Http;
     using Microsoft.Extensions.Logging;
 
-    public static class DuplicateMsgCacheCheck
+    public class DuplicateMsgCacheCheck
     {
         const string QueryParamDevEUI = "DevEUI";
         const string QueryParamGatewayId = "GatewayId";
         const string QueryParamFCntUp = "FCntUp";
         const string QueryParamFCntDown = "FCntDown";
         const string QueryParamCacheReset = "CacheReset";
+        private readonly ILoRaDeviceCacheStore cacheStore;
+
+        public DuplicateMsgCacheCheck(ILoRaDeviceCacheStore cacheStore)
+        {
+            this.cacheStore = cacheStore;
+        }
 
         [FunctionName(nameof(DuplicateMsgCheck))]
-        public static IActionResult DuplicateMsgCheck([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)]HttpRequest req, ILogger log, ExecutionContext context)
+        public IActionResult DuplicateMsgCheck([HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req)
         {
             try
             {
@@ -36,8 +42,11 @@ namespace LoraKeysManagerFacade
 
             if (!string.IsNullOrEmpty(cacheReset) && !string.IsNullOrEmpty(devEUI))
             {
-                LoRaDeviceCache.Delete(devEUI, context);
-                return (ActionResult)new OkObjectResult(null);
+                using (var deviceCache = new LoRaDeviceCache(this.cacheStore, devEUI, string.Empty))
+                {
+                    deviceCache.Delete(devEUI);
+                    return (ActionResult)new OkObjectResult(null);
+                }
             }
 
             string gatewayId = req.Query[QueryParamGatewayId];
@@ -58,18 +67,18 @@ namespace LoraKeysManagerFacade
                 clientFCntDown = down;
             }
 
-            var result = GetDuplicateMessageResult(devEUI, gatewayId, clientFCntUp, clientFCntDown, context);
+            var result = this.GetDuplicateMessageResult(devEUI, gatewayId, clientFCntUp, clientFCntDown);
 
             return new OkObjectResult(result);
         }
 
-        public static DuplicateMsgResult GetDuplicateMessageResult(string devEUI, string gatewayId, int clientFCntUp, int? clientFCntDown, ExecutionContext context)
+        public DuplicateMsgResult GetDuplicateMessageResult(string devEUI, string gatewayId, int clientFCntUp, int? clientFCntDown)
         {
             var isDuplicate = true;
             string processedDevice = gatewayId;
             int? newClientFCntDown = null;
 
-            using (var deviceCache = LoRaDeviceCache.Create(context, devEUI, gatewayId))
+            using (var deviceCache = new LoRaDeviceCache(this.cacheStore, devEUI, gatewayId))
             {
                 if (deviceCache.TryToLock())
                 {
