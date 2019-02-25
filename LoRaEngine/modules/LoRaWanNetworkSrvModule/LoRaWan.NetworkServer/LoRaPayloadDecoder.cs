@@ -127,7 +127,15 @@ namespace LoRaWan.NetworkServer
                             var externalDecoderResponse = JsonConvert.DeserializeObject<Dictionary<string, object>>(externalRawResponse);
                             if (externalDecoderResponse.TryGetValue("cloudToDeviceMessage", out var cloudToDeviceObject))
                             {
-                                loRaCloudToDeviceMessage = (LoRaCloudToDeviceMessage)cloudToDeviceObject;
+                                if (cloudToDeviceObject is JObject clouldToDeviceJObject)
+                                {
+                                    loRaCloudToDeviceMessage = clouldToDeviceJObject.ToObject<LoRaCloudToDeviceMessage>();
+                                }
+                                else
+                                {
+                                    loRaCloudToDeviceMessage = (LoRaCloudToDeviceMessage)cloudToDeviceObject;
+                                }
+
                                 externalDecoderResponse.Remove("cloudToDeviceMessage");
                             }
 

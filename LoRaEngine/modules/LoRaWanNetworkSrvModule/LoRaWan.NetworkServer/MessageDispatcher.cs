@@ -87,7 +87,7 @@ namespace LoRaWan.NetworkServer
         void DispatchLoRaDataMessage(LoRaRequest request)
         {
             var loRaPayload = (LoRaPayloadData)request.Payload;
-            
+
             // Change for AAEON
             if (!this.IsValidNetId(loRaPayload.GetDevAddrNetID(), this.configuration.NetId, loRaPayload.DevAddr))
             {
