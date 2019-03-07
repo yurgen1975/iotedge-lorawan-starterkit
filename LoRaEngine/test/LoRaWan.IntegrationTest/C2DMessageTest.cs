@@ -44,7 +44,7 @@ namespace LoRaWan.IntegrationTest
         // Ensures that C2D messages are received when working with confirmed messages
         // Uses Device9_OTAA
         [Fact]
-        public async Task Test_OTAA_Confirmed_Receives_C2D_Message()
+        public async Task Test_OTAA_Confirmed_Receives_C2D_Message_With_RX_Delay_2()
         {
             var device = this.TestFixtureCi.Device9_OTAA;
             this.LogTestStart(device);

@@ -205,7 +205,8 @@ namespace LoRaWan.NetworkServer
                     freq,
                     tmst,
                     devEUI,
-                    dlSettings);
+                    dlSettings,
+                    loRaDevice.RXDelay);
 
                 if (joinAccept != null)
                 {
@@ -233,14 +234,15 @@ namespace LoRaWan.NetworkServer
             double freq,
             long tmst,
             string devEUI,
-            byte[] dlSettings)
+            byte[] dlSettings,
+            ushort rxDelay)
         {
             var loRaPayloadJoinAccept = new LoRaTools.LoRaMessage.LoRaPayloadJoinAccept(
                 LoRaTools.Utils.ConversionHelper.ByteArrayToString(netId), // NETID 0 / 1 is default test
                 ConversionHelper.StringToByteArray(devAddr), // todo add device address management
                 appNonce.ToArray(),
                 dlSettings,
-                new byte[] { 0 },
+                rxDelay,
                 null);
 
             return loRaPayloadJoinAccept.Serialize(appKey, datr, freq, tmst, devEUI);

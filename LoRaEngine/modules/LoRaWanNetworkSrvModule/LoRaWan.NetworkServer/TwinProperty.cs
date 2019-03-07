@@ -34,5 +34,6 @@ namespace LoRaWan.NetworkServer
         public const string NbRep = "NbRep"; // 1 - 3
         public const string RX2DataRate = "RX2DataRate";
         public const string RX1DROffset = "RX1DROffset";
+        public const string RXDelay = "RXDelay";
     }
 }

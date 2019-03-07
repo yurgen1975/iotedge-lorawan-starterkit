@@ -126,14 +126,14 @@ namespace LoRaWan.NetworkServer
             long tmst;
             if (receiveWindow == Constants.RECEIVE_WINDOW_2)
             {
-                tmst = rxpk.Tmst + timeWatcher.GetReceiveWindow2Delay(loRaDevice) * 1000000;
+                tmst = CalculateTime(rxpk.Tmst, timeWatcher.GetReceiveWindow2Delay(loRaDevice), loRaDevice.RXDelay);
                 (freq, datr) = request.Rxpk.GetDownstreamRX2DRAndFreq(loRaDevice.DevEUI, configuration.Rx2DataRate, configuration.Rx2DataFrequency, loraRegion, loRaDevice.RX2DataRate);
             }
             else
             {
                 datr = loraRegion.GetDownstreamDR(rxpk, (uint)loRaDevice.RX1DROffset);
                 freq = loraRegion.GetDownstreamChannelFrequency(rxpk);
-                tmst = rxpk.Tmst + timeWatcher.GetReceiveWindow1Delay(loRaDevice) * 1000000;
+                tmst = CalculateTime(rxpk.Tmst, timeWatcher.GetReceiveWindow1Delay(loRaDevice), loRaDevice.RXDelay);
             }
 
             // todo: check the device twin preference if using confirmed or unconfirmed down
@@ -290,6 +290,18 @@ namespace LoRaWan.NetworkServer
             }
 
             return macCommands.Values;
+        }
+
+        private static long CalculateTime(uint baseTime, int windowsTime, ushort rXDelay)
+        {
+            if (rXDelay > 1 && rXDelay < 16)
+            {
+                return baseTime + (windowsTime + rXDelay - 1) * 1000000;
+            }
+            else
+            {
+                return baseTime + windowsTime * 1000000;
+            }
         }
     }
 }

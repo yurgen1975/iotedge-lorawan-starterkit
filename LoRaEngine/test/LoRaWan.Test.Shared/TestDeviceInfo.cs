@@ -54,6 +54,8 @@ namespace LoRaWan.Test.Shared
 
         public uint RX1DROffset { get; set; } = 0;
 
+        public ushort RXDelay { get; set; } = 0;
+
         /// <summary>
         /// Gets the desired properties for the <see cref="TestDeviceInfo"/>
         /// </summary>
@@ -89,6 +91,8 @@ namespace LoRaWan.Test.Shared
             desiredProperties[nameof(this.RX1DROffset)] = this.RX1DROffset;
 
             desiredProperties[nameof(this.RX2DataRate)] = this.RX2DataRate;
+
+            desiredProperties[nameof(this.RXDelay)] = this.RXDelay;
 
             return desiredProperties;
         }

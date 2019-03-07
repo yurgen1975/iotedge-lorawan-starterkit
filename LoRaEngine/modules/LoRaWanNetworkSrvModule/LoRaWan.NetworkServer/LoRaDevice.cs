@@ -103,6 +103,8 @@ namespace LoRaWan.NetworkServer
 
         public ushort RX1DROffset { get; set; }
 
+        public ushort RXDelay { get; set; }
+
         readonly object fcntSync;
         readonly object queueSync;
         readonly Queue<LoRaRequest> queuedRequests;
@@ -138,6 +140,7 @@ namespace LoRaWan.NetworkServer
             this.classType = LoRaDeviceClassType.A;
             this.RX1DROffset = 0;
             this.RX2DataRate = 0;
+            this.RXDelay = 0;
         }
 
         /// <summary>
@@ -255,6 +258,11 @@ namespace LoRaWan.NetworkServer
                     if (twin.Properties.Desired.Contains(TwinProperty.RX1DROffset))
                     {
                         this.RX1DROffset = (ushort)this.GetTwinPropertyIntValue(twin.Properties.Desired[TwinProperty.RX1DROffset].Value);
+                    }
+
+                    if (twin.Properties.Desired.Contains(TwinProperty.RXDelay))
+                    {
+                        this.RXDelay = (ushort)this.GetTwinPropertyIntValue(twin.Properties.Desired[TwinProperty.RXDelay].Value);
                     }
 
                     if (twin.Properties.Desired.Contains(TwinProperty.ClassType))
