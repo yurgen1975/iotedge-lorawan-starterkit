@@ -69,7 +69,7 @@
                 "authorizationPolicies": [
                     {
                       "keyName": "[variables('iotHubKeyAdminPolicyName')]",
-                      "rights": "RegistryRead, RegistryWrite, ServiceConnect"
+                      "rights": "RegistryRead, RegistryWrite, ServiceConnect, DeviceConnect"
                     },
                     {
                         "keyName": "[variables('iotHubKeyPolicyName')]",
