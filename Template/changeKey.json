@@ -1,0 +1,37 @@
+{
+    "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "solutionPrefix": {
+            "type": "string",
+            "metadata": {
+                "description": "Prefix used in resource names. Should be unique enough since this ends up being used also in domain names."
+                }
+            }
+    },
+    "variables": {
+        "iotHubKey": "[concat(parameters('solutionPrefix'), 'key')]",
+        "iotHubName": "[concat(parameters('solutionPrefix'), 'hub')]"
+    },
+    "resources": [
+        {
+            "type": "Microsoft.Devices/IotHubs",
+            "sku": {
+                "name": "S1",
+                "tier": "Standard",
+                "capacity": 1
+            },
+            "name": "[variables('iotHubName')]",
+            "apiVersion": "2017-07-01",
+            "location": "[resourceGroup().location]",
+            "properties": {
+                "authorizationPolicies": [
+                    {
+                        "keyName": "[variables('iotHubKey')]",
+                        "rights": "RegistryRead, RegistryWrite"
+                    }
+                  ]
+            }
+        }
+    ]
+}
