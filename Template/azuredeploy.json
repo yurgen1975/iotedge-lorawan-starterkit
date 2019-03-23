@@ -203,6 +203,12 @@
                     },
                     "resetPin": {
                         "value": "[parameters('resetPin')]"
+                    },
+                    "gitUsername": {
+                        "value": "[variables('gitUsername')]"
+                    },
+                    "gitBranch": {
+                        "value": "[variables('gitBranch')]"
                     }
                 }
             }
