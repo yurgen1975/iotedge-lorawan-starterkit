@@ -47,9 +47,10 @@
         "functionAppName": "[concat(parameters('uniqueSolutionPrefix'), 'function')]",
         "gitUsername": "Azure",
         "functionZipBinary": "https://github.com/Azure/iotedge-lorawan-starterkit/releases/download/v0.4.0-preview/function-0.4-preview.zip",
-        "gitBranch": "master",
+        "gitBranch": "mik-dev-key",
         "storageAccountId": "[concat(resourceGroup().id, '/providers/', 'Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
-        "iotHubOwnerPolicyName": "iothubowner",
+        "iotHubKeyAdminPolicyName": "LoRaAdminKey",
+        "iotHubKeyPolicyName": "[concat(parameters('uniqueSolutionPrefix'), 'key')]",
         "appInsightName": "[concat(parameters('uniqueSolutionPrefix'), 'insight')]",
         "redisCacheName": "[concat(parameters('uniqueSolutionPrefix'), 'redis')]"
     },
@@ -64,7 +65,18 @@
             "name": "[variables('iotHubName')]",
             "apiVersion": "2017-07-01",
             "location": "[variables('location')]",
-            "properties": {},
+            "properties": {
+                "authorizationPolicies": [
+                    {
+                      "keyName": "[variables('iotHubKeyAdminPolicyName')]",
+                      "rights": "RegistryRead, RegistryWrite, ServiceConnect"
+                    },
+                    {
+                        "keyName": "[variables('iotHubKeyPolicyName')]",
+                        "rights": "RegistryRead, RegistryWrite"
+                    }
+                  ]
+            },
             "dependsOn": []
         },
         {
@@ -110,7 +122,7 @@
                         {
                             "name": "IoTHubConnectionString",
                             "type": "Custom",
-                            "connectionString": "[concat('HostName=', variables('iotHubName'), '.azure-devices.net;SharedAccessKeyName=', variables('iotHubOwnerPolicyName'), ';SharedAccessKey=', listKeys(resourceId('Microsoft.Devices/IotHubs/IotHubKeys', variables('iotHubName'), variables('iotHubOwnerPolicyName')), '2017-01-19').primaryKey)]"
+                            "connectionString": "[concat('HostName=', variables('iotHubName'), '.azure-devices.net;SharedAccessKeyName=', variables('iotHubKeyPolicyName'), ';SharedAccessKey=', listKeys(resourceId('Microsoft.Devices/IotHubs/IotHubKeys', variables('iotHubName'), variables('iotHubKeyPolicyName')), '2017-01-19').primaryKey)]"
                         },
                         {
                             "name": "RedisConnectionString",

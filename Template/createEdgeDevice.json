@@ -6,20 +6,20 @@
             "type": "string",
             "metadata": {
                 "description": "Prefix used in resource names. Should be unique enough since this ends up being used also in domain names."
-            }
-        },
+                }
+            },
         "edgeGatewayName": {
             "type": "string",
             "metadata": {
                 "description": "The name of the Edge gateway."
-            }
-        },
+                }
+            },
         "resetPin": {
             "type": "int",
             "metadata": {
                 "description": "Provide the reset pin value of your gateway. Please refer to the doc if you are unfamiliar with the value"
-            }
-    },
+                }
+            },
         "region": {
             "type": "string",
             "allowedValues": [
@@ -29,12 +29,13 @@
             "defaultValue": "EU",
             "metadata": {
                 "description": "In what region is your gateway deployed?"
-    }
-    }
-},
+                }   
+            }
+    },
     "variables": {
 
-        "functionAppName":"[concat(parameters('solutionPrefix'), 'function')]"
+        "functionAppName":"[concat(parameters('solutionPrefix'), 'function')]",
+        "iotHubKey": "[concat(parameters('uniqueSolutionPrefix'), 'key')]"
     },
     "resources": [
         {
@@ -48,6 +49,29 @@
                     "contentVersion": "1.0.0.0"
                 }
             }
+        },
+        {
+            "type": "Microsoft.Devices/IotHubs",
+            "sku": {
+                "name": "S1",
+                "tier": "Standard",
+                "capacity": 1
+            },
+            "name": "[variables('iotHubName')]",
+            "apiVersion": "2017-07-01",
+            "location": "[variables('location')]",
+            "properties": {
+                "authorizationPolicies": [
+                    {
+                        "keyName": "[variables('iotHubKey')]",
+                        "rights": "RegistryRead, RegistryWrite"
+                    }
+                  ]
+            },
+            "dependsOn": [
+                "[concat('Microsoft.Resources/deployment', 'deployFunction')]"
+
+            ]
         }
     ]
 }
