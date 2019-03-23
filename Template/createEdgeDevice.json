@@ -35,7 +35,7 @@
     "variables": {
 
         "functionAppName":"[concat(parameters('solutionPrefix'), 'function')]",
-        "iotHubKey": "[concat(parameters('uniqueSolutionPrefix'), 'key')]"
+        "iotHubKey": "[concat(parameters('solutionPrefix'), 'key')]"
     },
     "resources": [
         {
