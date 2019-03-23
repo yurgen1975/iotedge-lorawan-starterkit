@@ -35,7 +35,7 @@
     "variables": {
 
         "functionAppName":"[concat(parameters('solutionPrefix'), 'function')]",
-        "iotHubKey": "[concat(parameters('solutionPrefix '), 'key')]",
+        "iotHubKey": "[concat(parameters('solutionPrefix'), 'key')]",
         "iotHubName": "[concat(parameters('solutionPrefix'), 'hub')]"
     },
     "resources": [
@@ -60,7 +60,7 @@
             },
             "name": "[variables('iotHubName')]",
             "apiVersion": "2017-07-01",
-            "location": "[variables('location')]",
+            "location": "[resourceGroup().location]",
             "properties": {
                 "authorizationPolicies": [
                     {
