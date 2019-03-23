@@ -49,7 +49,6 @@
         "functionZipBinary": "https://github.com/Azure/iotedge-lorawan-starterkit/releases/download/v0.4.0-preview/function-0.4-preview.zip",
         "gitBranch": "mik-dev-key",
         "storageAccountId": "[concat(resourceGroup().id, '/providers/', 'Microsoft.Storage/storageAccounts/', variables('storageAccountName'))]",
-        "iotHubKeyAdminPolicyName": "LoRaAdminKey",
         "iotHubKeyPolicyName": "[concat(parameters('uniqueSolutionPrefix'), 'key')]",
         "appInsightName": "[concat(parameters('uniqueSolutionPrefix'), 'insight')]",
         "redisCacheName": "[concat(parameters('uniqueSolutionPrefix'), 'redis')]"
@@ -68,12 +67,8 @@
             "properties": {
                 "authorizationPolicies": [
                     {
-                      "keyName": "[variables('iotHubKeyAdminPolicyName')]",
-                      "rights": "RegistryRead, RegistryWrite, ServiceConnect, DeviceConnect"
-                    },
-                    {
                         "keyName": "[variables('iotHubKeyPolicyName')]",
-                        "rights": "RegistryRead, RegistryWrite"
+                        "rights": "RegistryRead, RegistryWrite, ServiceConnect, DeviceConnect"
                     }
                   ]
             },
