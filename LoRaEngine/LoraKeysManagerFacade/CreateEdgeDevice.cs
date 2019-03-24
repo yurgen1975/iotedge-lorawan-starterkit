@@ -4,6 +4,7 @@
 namespace LoraKeysManagerFacade
 {
     using System;
+    using System.Configuration;
     using System.Net;
     using System.Net.Http;
     using System.Text;
@@ -18,13 +19,6 @@ namespace LoraKeysManagerFacade
 
     public class CreateEdgeDevice
     {
-        private RegistryManager registryManager;
-
-        public CreateEdgeDevice(RegistryManager registryManager)
-        {
-            this.registryManager = registryManager;
-        }
-
         [FunctionName(nameof(CreateEdgeDevice))]
         public async Task<HttpResponseMessage> CreateEdgeDeviceImp(
             [HttpTrigger(AuthorizationLevel.Function, "get", "post", Route = null)] HttpRequest req,
@@ -67,7 +61,17 @@ namespace LoraKeysManagerFacade
                 IotEdge = true
             };
 
-            await this.registryManager.AddDeviceAsync(edgeGatewayDevice);
+            System.Configuration.Configuration config =
+                     ConfigurationManager.OpenExeConfiguration(
+                     ConfigurationUserLevel.None);
+
+            // Clear the connection strings collection.
+            ConnectionStringsSection csSection =
+                config.ConnectionStrings;
+            ConnectionStringSettingsCollection csCollection = csSection.ConnectionStrings;
+            ConnectionStringSettings cs = csCollection["IotHubAdminKey"];
+            RegistryManager registryManager = RegistryManager.CreateFromConnectionString(cs.ConnectionString);
+            await registryManager.AddDeviceAsync(edgeGatewayDevice);
 
             string deviceConfigurationUrl = Environment.GetEnvironmentVariable("DEVICE_CONFIG_LOCATION");
             string json = null;
@@ -81,16 +85,16 @@ namespace LoraKeysManagerFacade
             json = json.Replace("[$region]", region);
             json = json.Replace("[$reset_pin]", resetPin);
             ConfigurationContent spec = JsonConvert.DeserializeObject<ConfigurationContent>(json);
-            await this.registryManager.AddModuleAsync(new Module(deviceName, "LoRaWanNetworkSrvModule"));
+            await registryManager.AddModuleAsync(new Module(deviceName, "LoRaWanNetworkSrvModule"));
 
-            await this.registryManager.ApplyConfigurationContentOnDeviceAsync(deviceName, spec);
+            await registryManager.ApplyConfigurationContentOnDeviceAsync(deviceName, spec);
 
             Twin twin = new Twin();
             twin.Properties.Desired = new TwinCollection(@"{FacadeServerUrl:'" + string.Format("https://{0}.azurewebsites.net/api/", GetEnvironmentVariable("FACADE_HOST_NAME")) + "',FacadeAuthCode: " +
                 "'" + facadeKey + "'}");
-            var remoteTwin = await this.registryManager.GetTwinAsync(deviceName);
+            var remoteTwin = await registryManager.GetTwinAsync(deviceName);
 
-            await this.registryManager.UpdateTwinAsync(deviceName, "LoRaWanNetworkSrvModule", twin, remoteTwin.ETag);
+            await registryManager.UpdateTwinAsync(deviceName, "LoRaWanNetworkSrvModule", twin, remoteTwin.ETag);
 
             bool.TryParse(Environment.GetEnvironmentVariable("DEPLOY_DEVICE"), out bool deployEndDevice);
 
@@ -100,21 +104,30 @@ namespace LoraKeysManagerFacade
             {
                 string otaaDeviceId = "47AAC86800430028";
                 var otaaDevice = new Device(otaaDeviceId);
-                await this.registryManager.AddDeviceAsync(otaaDevice);
+                await registryManager.AddDeviceAsync(otaaDevice);
 
                 var otaaEndTwin = new Twin();
                 otaaEndTwin.Properties.Desired = new TwinCollection(@"{AppEUI:'BE7A0000000014E2',AppKey:'8AFE71A145B253E49C3031AD068277A1',GatewayID:'',SensorDecoder:'DecoderValueSensor'}");
-                var otaaRemoteTwin = await this.registryManager.GetTwinAsync(otaaDeviceId);
-                await this.registryManager.UpdateTwinAsync(otaaDeviceId, otaaEndTwin, otaaRemoteTwin.ETag);
+                var otaaRemoteTwin = await registryManager.GetTwinAsync(otaaDeviceId);
+                await registryManager.UpdateTwinAsync(otaaDeviceId, otaaEndTwin, otaaRemoteTwin.ETag);
 
                 string abpDeviceId = "46AAC86800430028";
                 var abpDevice = new Device(abpDeviceId);
-                await this.registryManager.AddDeviceAsync(abpDevice);
+                await registryManager.AddDeviceAsync(abpDevice);
                 var abpTwin = new Twin();
                 abpTwin.Properties.Desired = new TwinCollection(@"{AppSKey:'2B7E151628AED2A6ABF7158809CF4F3C',NwkSKey:'3B7E151628AED2A6ABF7158809CF4F3C',GatewayID:'',DevAddr:'0228B1B1',SensorDecoder:'DecoderValueSensor'}");
-                var abpRemoteTwin = await this.registryManager.GetTwinAsync(abpDeviceId);
-                await this.registryManager.UpdateTwinAsync(abpDeviceId, abpTwin, abpRemoteTwin.ETag);
+                var abpRemoteTwin = await registryManager.GetTwinAsync(abpDeviceId);
+                await registryManager.UpdateTwinAsync(abpDeviceId, abpTwin, abpRemoteTwin.ETag);
             }
+
+            // Remove the element.
+            csCollection.Remove(cs);
+
+            // Save the configuration file.
+            config.Save(ConfigurationSaveMode.Modified);
+
+            Console.WriteLine(
+           "Connection string owner settings removed.");
 
             var template = @"{'$schema': 'https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#', 'contentVersion': '1.0.0.0', 'parameters': {}, 'variables': {}, 'resources': []}";
             HttpResponseMessage response = new HttpResponseMessage(HttpStatusCode.OK);

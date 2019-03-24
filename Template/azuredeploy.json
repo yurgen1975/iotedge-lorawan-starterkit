@@ -67,8 +67,12 @@
             "properties": {
                 "authorizationPolicies": [
                     {
-                        "keyName": "[variables('iotHubKeyPolicyName')]",
+                        "keyName": "iothubowner",
                         "rights": "RegistryRead, RegistryWrite, ServiceConnect, DeviceConnect"
+                    },
+                    {
+                        "keyName": "[variables('iotHubKeyPolicyName')]",
+                        "rights": "RegistryRead, RegistryWrite"
                     }
                   ]
             },
@@ -118,6 +122,11 @@
                             "name": "IoTHubConnectionString",
                             "type": "Custom",
                             "connectionString": "[concat('HostName=', variables('iotHubName'), '.azure-devices.net;SharedAccessKeyName=', variables('iotHubKeyPolicyName'), ';SharedAccessKey=', listKeys(resourceId('Microsoft.Devices/IotHubs/IotHubKeys', variables('iotHubName'), variables('iotHubKeyPolicyName')), '2017-01-19').primaryKey)]"
+                        },
+                        {
+                            "name": "IotHubAdminKey",
+                            "type": "Custom",
+                            "connectionString": "[concat('HostName=', variables('iotHubName'), '.azure-devices.net;SharedAccessKeyName=', 'iothubowner', ';SharedAccessKey=', listKeys(resourceId('Microsoft.Devices/IotHubs/IotHubKeys', variables('iotHubName'), variables('iotHubKeyPolicyName')), '2017-01-19').primaryKey)]"
                         },
                         {
                             "name": "RedisConnectionString",

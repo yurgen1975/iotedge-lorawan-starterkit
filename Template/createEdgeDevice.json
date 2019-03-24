@@ -34,9 +34,7 @@
 },
     "variables": {
 
-        "functionAppName":"[concat(parameters('solutionPrefix'), 'function')]",
-        "gitUsername": "Azure",
-        "gitBranch": "mik-dev-key"
+        "functionAppName":"[concat(parameters('solutionPrefix'), 'function')]"
     },
     "resources": [
         {
@@ -48,26 +46,6 @@
                 "templateLink": {
                     "uri": "[Concat(listsecrets(resourceId('Microsoft.Web/sites/functions', concat(parameters('solutionPrefix'), 'function'), 'CreateEdgeDevice'),'2015-08-01').trigger_url,'&region=',parameters('region'),'&resetPin=',parameters('resetPin'),'&deviceName=',parameters('edgeGatewayName'),'&publishingUserName=', list(resourceId('Microsoft.Web/sites/config', variables('functionAppName'), 'publishingcredentials'), '2016-08-01').properties.publishingUserName,'&publishingPassword=',list(resourceId('Microsoft.Web/sites/config', variables('functionAppName'), 'publishingcredentials'), '2016-08-01').properties.publishingPassword)]",                    
                     "contentVersion": "1.0.0.0"
-                }
-            }
-        },
-        {
-            "name": "changeKeyLauncher",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2015-01-01",
-            "dependsOn": [
-                "[resourceId('Microsoft.Resources/deployments', 'deployFunction')]"
-            ],
-            "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[concat('https://raw.githubusercontent.com/',variables('gitUsername'),'/iotedge-lorawan-starterkit/',variables('gitBranch'),'/Template/changeKey.json')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "solutionPrefix": {
-                        "value": "[parameters('solutionPrefix')]"
-                    }
                 }
             }
         }
