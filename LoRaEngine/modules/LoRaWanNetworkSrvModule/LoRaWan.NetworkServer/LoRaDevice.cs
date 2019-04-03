@@ -118,7 +118,7 @@ namespace LoRaWan.NetworkServer
         ChangeTrackingProperty<LoRaRegionType> region = new ChangeTrackingProperty<LoRaRegionType>(TwinProperty.Region, LoRaRegionType.NotSet);
 
         /// <summary>
-        /// Gets the <see cref="LoRaTools.Regions.LoRaRegionType"/> of the device
+        /// Gets or sets the <see cref="LoRaTools.Regions.LoRaRegionType"/> of the device
         /// Relevant only for <see cref="LoRaDeviceClassType.C"/>
         /// </summary>
         public LoRaRegionType LoRaRegion
