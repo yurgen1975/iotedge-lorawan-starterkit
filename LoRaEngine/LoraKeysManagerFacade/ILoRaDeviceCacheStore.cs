@@ -6,6 +6,7 @@ namespace LoraKeysManagerFacade
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using StackExchange.Redis;
 
     public interface ILoRaDeviceCacheStore
     {
@@ -36,5 +37,7 @@ namespace LoraKeysManagerFacade
         long ListAdd(string key, string value, TimeSpan? expiration = null);
 
         IReadOnlyList<string> ListGet(string key);
+
+        IEnumerable<HashEntry> Scan(string key, string pattern, int pageSize);
     }
 }

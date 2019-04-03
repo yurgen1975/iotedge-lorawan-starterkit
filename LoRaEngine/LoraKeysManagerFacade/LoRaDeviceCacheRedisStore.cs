@@ -101,5 +101,12 @@ namespace LoraKeysManagerFacade
             var list = this.redisCache.ListRange(key);
             return list.Select(x => (string)x).ToList();
         }
+
+        // Should be tested toroughly
+        public IEnumerable<HashEntry> Scan(string key, string pattern, int pageSize = 100)
+        {
+            var results = this.redisCache.HashScan(key);
+            return results;
+        }
     }
 }
