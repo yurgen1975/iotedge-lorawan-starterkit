@@ -6,6 +6,7 @@ namespace LoraKeysManagerFacade
     using System;
     using System.Collections.Generic;
     using System.Threading.Tasks;
+    using StackExchange.Redis;
 
     public interface ILoRaDeviceCacheStore
     {
@@ -36,5 +37,13 @@ namespace LoraKeysManagerFacade
         long ListAdd(string key, string value, TimeSpan? expiration = null);
 
         IReadOnlyList<string> ListGet(string key);
+
+        bool TrySetHashObject(string key, string subkey, string value, TimeSpan? timeToExpire = null);
+
+        RedisValue[] TryGetHashObject(string key);
+
+        void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list, TimeSpan? timeToExpire = null);
+
+        void ChangeLockTTL(string key, TimeSpan timeToExpire);
     }
 }

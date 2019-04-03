@@ -101,5 +101,41 @@ namespace LoraKeysManagerFacade
             var list = this.redisCache.ListRange(key);
             return list.Select(x => (string)x).ToList();
         }
+
+        public bool TrySetHashObject(string cacheKey, string subkey, string value, TimeSpan? timeToExpire = null)
+        {
+            var returnValue = this.redisCache.HashSet(cacheKey, subkey, value);
+            if (timeToExpire.HasValue)
+            {
+                this.redisCache.KeyExpire(cacheKey, DateTime.UtcNow.Add(timeToExpire.Value));
+            }
+
+            return returnValue;
+        }
+
+        public RedisValue[] TryGetHashObject(string key)
+        {
+            return this.redisCache.HashValues(key);
+        }
+
+        public void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list, TimeSpan? timeToExpire = null)
+        {
+            HashEntry[] hashEntries = new HashEntry[list.Count];
+            for (int i = 0; i < list.Count; i++)
+            {
+                hashEntries[i] = new HashEntry(list[i].DevEUI, JsonConvert.SerializeObject(list[i]));
+            }
+
+            this.redisCache.HashSet(cacheKey, hashEntries);
+            if (timeToExpire.HasValue)
+            {
+                this.redisCache.KeyExpire(cacheKey, DateTime.UtcNow.Add(timeToExpire.Value));
+            }
+        }
+
+        public void ChangeLockTTL(string key, TimeSpan timeToExpire)
+        {
+                this.redisCache.KeyExpire(key, DateTime.UtcNow.Add(timeToExpire));
+        }
     }
 }
