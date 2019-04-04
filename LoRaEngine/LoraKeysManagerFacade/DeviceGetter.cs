@@ -76,11 +76,6 @@ namespace LoraKeysManagerFacade
             {
                 return new BadRequestObjectResult(ex.Message);
             }
-            finally
-            {
-                _ = this.StartDeltaReload(gatewayId);
-                _ = this.StartFullReloadIfNeeded(gatewayId);
-            }
         }
 
         public async Task<List<IoTHubDeviceInfo>> GetDeviceList(string devEUI, string gatewayId, string devNonce, string devAddr, ILogger log = null)
@@ -143,50 +138,49 @@ namespace LoraKeysManagerFacade
 
                 // TODO check for sql injection
                 devAddr = devAddr.Replace('\'', ' ');
-                using (var devAddrCache = new LoRaDevAddrCache(this.cacheStore, devAddr, gatewayId))
+                var devAddrCache = new LoRaDevAddrCache(this.cacheStore, devAddr, gatewayId, this.registryManager);
+
+                if (devAddrCache.TryGetInfo(out List<DevAddrCacheInfo> devAddressesInfo))
                 {
-                    if (devAddrCache.TryGetInfo(out List<DevAddrCacheInfo> devAddressesInfo))
+                    for (int i = 0; i < devAddressesInfo.Count; i++)
                     {
-                        for (int i = 0; i < devAddressesInfo.Count; i++)
+                        // device was not yet populated
+                        if (!string.IsNullOrEmpty(devAddressesInfo[i].PrimaryKey))
                         {
-                            // device was not yet populated
-                            if (!string.IsNullOrEmpty(devAddressesInfo[i].PrimaryKey))
-                            {
-                                results.Add(devAddressesInfo[i]);
-                            }
-                            else
-                            {
-                                // we need to load the primaryKey from IoTHub
-                                // Add a lock loadPrimaryKey get lock get
-                                    devAddressesInfo[i].PrimaryKey = await this.LoadPrimaryKeyAsync(devAddressesInfo[i].DevEUI);
-                                    results.Add(devAddressesInfo[i]);
-                                    devAddrCache.StoreInfo(devAddressesInfo[i]);
-                            }
+                            results.Add(devAddressesInfo[i]);
                         }
-
-                        // if the cache results are null, we query the IoT Hub
-                        if (results.Count == 0)
+                        else
                         {
-                            var query = this.registryManager.CreateQuery($"SELECT * FROM devices WHERE properties.desired.DevAddr = '{devAddr}' OR properties.reported.DevAddr ='{devAddr}'", 100);
-                            while (query.HasMoreResults)
-                            {
-                                var page = await query.GetNextAsTwinAsync();
+                            // we need to load the primaryKey from IoTHub
+                            // Add a lock loadPrimaryKey get lock get
+                            devAddressesInfo[i].PrimaryKey = await this.LoadPrimaryKeyAsync(devAddressesInfo[i].DevEUI);
+                            results.Add(devAddressesInfo[i]);
+                            devAddrCache.StoreInfo(devAddressesInfo[i]);
+                        }
+                    }
+                }
 
-                                foreach (var twin in page)
+                // if the cache results are null, we query the IoT Hub
+                if (results.Count == 0)
+                {
+                    var query = this.registryManager.CreateQuery($"SELECT * FROM devices WHERE properties.desired.DevAddr = '{devAddr}' OR properties.reported.DevAddr ='{devAddr}'", 100);
+                    while (query.HasMoreResults)
+                    {
+                        var page = await query.GetNextAsTwinAsync();
+
+                        foreach (var twin in page)
+                        {
+                            if (twin.DeviceId != null)
+                            {
+                                var device = await this.registryManager.GetDeviceAsync(twin.DeviceId);
+                                var iotHubDeviceInfo = new IoTHubDeviceInfo
                                 {
-                                    if (twin.DeviceId != null)
-                                    {
-                                        var device = await this.registryManager.GetDeviceAsync(twin.DeviceId);
-                                        var iotHubDeviceInfo = new IoTHubDeviceInfo
-                                        {
-                                            DevAddr = devAddr,
-                                            DevEUI = twin.DeviceId,
-                                            PrimaryKey = device.Authentication.SymmetricKey.PrimaryKey
-                                        };
-                                        results.Add(iotHubDeviceInfo);
-                                        devAddrCache.StoreInfo((DevAddrCacheInfo)iotHubDeviceInfo);
-                                    }
-                                }
+                                    DevAddr = devAddr,
+                                    DevEUI = twin.DeviceId,
+                                    PrimaryKey = device.Authentication.SymmetricKey.PrimaryKey
+                                };
+                                results.Add(iotHubDeviceInfo);
+                                devAddrCache.StoreInfo((DevAddrCacheInfo)iotHubDeviceInfo);
                             }
                         }
                     }
@@ -198,102 +192,6 @@ namespace LoraKeysManagerFacade
             }
 
             return results;
-        }
-
-        private async Task StartFullReloadIfNeeded(string gatewayId)
-        {
-            if ((DateTime.UtcNow - LoRaDevAddrCache.LastFullReload) > TimeSpan.FromHours(LoRaDevAddrCache.CacheFullReloadAfterHours))
-            {
-                    List<DevAddrCacheInfo> devAddrCacheInfos = new List<DevAddrCacheInfo>();
-                    // load all the LoRa devices
-                    var queryDeviceList = this.registryManager.CreateQuery($"SELECT * FROM devices WHERE is_defined(properties.desired.AppKey) OR is_defined(properties.desired.AppSKey) OR is_defined(properties.desired.NwkSKey)");
-                    while (queryDeviceList.HasMoreResults)
-                    {
-                        var page = await queryDeviceList.GetNextAsTwinAsync();
-                        foreach (var twin in page)
-                        {
-                            // can device id be null?
-                            if (twin.DeviceId != null)
-                            {
-                                devAddrCacheInfos.Add(new DevAddrCacheInfo()
-                                {
-                                    DevAddr = twin.Properties.Desired["DevAddr"] ?? twin.Properties.Reported["DevAddr"],
-                                    DevEUI = twin.DeviceId,
-                                    GatewayId = twin.Properties.Desired["GatewayId"]
-                                });
-                            }
-                        }
-                    }
-
-                    LoRaDevAddrCache.RebuildCache(devAddrCacheInfos, this.cacheStore, gatewayId);
-            }
-        }
-
-        /// <summary>
-        /// Delta reload update the cache with recently updated elements from IoT Hub
-        /// </summary>
-        private async Task StartDeltaReload(string gatewayId)
-        {
-            if ((DateTime.UtcNow - LoRaDevAddrCache.LastDeltaReload) > TimeSpan.FromMinutes(LoRaDevAddrCache.CacheUpdateAfterMinutes))
-            {
-                var query = this.registryManager.CreateQuery($"SELECT * FROM c where properties.desired.$metadata.$lastUpdated >= '{LoRaDevAddrCache.LastDeltaReload.ToString()}'");
-                while (query.HasMoreResults)
-                {
-                    var page = await query.GetNextAsTwinAsync();
-
-                    foreach (var twin in page)
-                    {
-                        if (twin.DeviceId != null)
-                        {
-                            var device = await this.registryManager.GetDeviceAsync(twin.DeviceId);
-                            var loRaDevAddr = new DevAddrCacheInfo()
-                            {
-                                DevAddr = twin.Properties.Desired["DevAddr"] ?? twin.Properties.Reported["DevAddr"],
-                                DevEUI = twin.DeviceId,
-                                GatewayId = twin.Properties.Desired["GatewayId"]
-                            };
-
-                            // Not sure about performance of this, might want to switch
-                            using (var devAddrCache = new LoRaDevAddrCache(this.cacheStore, loRaDevAddr.DevAddr, loRaDevAddr.GatewayId))
-                            {
-                                if (devAddrCache.TryGetInfo(out List<DevAddrCacheInfo> listInfo))
-                                {
-                                    bool updated = false;
-                                    for (int i = 0; i < listInfo.Count; i++)
-                                    {
-                                        // Need to review logic here.
-                                        if (loRaDevAddr.DevAddr == listInfo[i].DevAddr)
-                                        {
-                                            if (loRaDevAddr.DevEUI == listInfo[i].DevEUI)
-                                            {
-                                                if (loRaDevAddr.GatewayId != listInfo[i].GatewayId)
-                                                {
-                                                    loRaDevAddr.GatewayId = listInfo[i].GatewayId;
-                                                    devAddrCache.StoreInfo(loRaDevAddr);
-                                                    updated = true;
-                                                    break;
-                                                }
-                                            }
-                                        }
-                                    }
-
-                                    if (!updated)
-                                    {
-                                        devAddrCache.StoreInfo(loRaDevAddr);
-                                    }
-                                }
-                                else
-                                {
-                                    // list does not contain we add the element
-                                    devAddrCache.StoreInfo(loRaDevAddr);
-                                }
-                            }
-                        }
-                    }
-                }
-
-                this.cacheStore.StringSet(string.Concat("lastdeltareload:", gatewayId), DateTime.UtcNow.ToString(), null);
-            }
         }
 
         private async Task<string> LoadPrimaryKeyAsync(string devEUI)

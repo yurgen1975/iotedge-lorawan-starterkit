@@ -5,23 +5,23 @@ namespace LoraKeysManagerFacade
 {
     using System;
     using System.Collections.Generic;
+    using System.Linq;
     using System.Threading.Tasks;
     using Microsoft.Azure.Devices;
     using Microsoft.Azure.WebJobs;
     using Newtonsoft.Json;
+    using StackExchange.Redis;
 
-    public sealed class LoRaDevAddrCache : IDisposable
+    public sealed class LoRaDevAddrCache
     {
-        public const int CacheUpdateAfterMinutes = 5;
+        public const int CacheDeltaUpdateAfterMinutes = 5;
         public const int CacheFullReloadAfterHours = 24;
-
-        private const string CacheKeyLockSuffix = "devAddrlock";
-        private const string CacheKeyPrefix = "DevAddrTable:";
+        private const string DeltaUpdateKey = "deltaUpdateKey";
+        private const string LastDeltaUpdateKeyValue = "lastDeltaUpdateKeyValue";
+        private const string FullUpdateKey = "fullUpdateKey";
+        private const string GlobalDevAddrUpdateKey = "globalUpdateKey";
+        private const string CacheKeyPrefix = "devAddrTable:";
         private static readonly TimeSpan LockExpiry = TimeSpan.FromSeconds(10);
-
-        public static DateTime LastDeltaReload { get; set; }
-
-        public static DateTime LastFullReload { get; set; }
 
         private readonly ILoRaDeviceCacheStore cacheStore;
         private readonly string gatewayId;
@@ -29,14 +29,10 @@ namespace LoraKeysManagerFacade
         private readonly string devAddr;
         private string devEUI;
 
-        public bool IsLockOwner { get; private set; }
-
-        private string lockKey;
-
         private static string GenerateKey(string devAddr) => CacheKeyPrefix + devAddr;
 
         // How do I detect for first boot??? Need to set LastFullReload
-        public LoRaDevAddrCache(ILoRaDeviceCacheStore cacheStore, string devAddr, string gatewayId)
+        public LoRaDevAddrCache(ILoRaDeviceCacheStore cacheStore, string devAddr, string gatewayId, RegistryManager registryManager)
         {
             if (string.IsNullOrEmpty(devAddr))
             {
@@ -53,30 +49,8 @@ namespace LoraKeysManagerFacade
             this.cacheKey = GenerateKey(devAddr);
             this.devAddr = devAddr;
 
-            // remove gatewayid
-            DateTime.TryParse(cacheStore.StringGet(string.Concat("lastfullreload:", gatewayId)), out var lastFullReload);
-            LastFullReload = lastFullReload;
-
-            DateTime.TryParse(cacheStore.StringGet(string.Concat("lastdeltareload:", gatewayId)), out var lastDeltaReload);
-            LastDeltaReload = lastDeltaReload;
-        }
-
-        public async Task<bool> TryToLockAsync(string lockKey = null, bool block = true)
-        {
-            if (this.IsLockOwner)
-            {
-                return true;
-            }
-
-            var lk = lockKey ?? this.devAddr + CacheKeyLockSuffix;
-
-            if (this.IsLockOwner = await this.cacheStore.LockTakeAsync(lk, this.gatewayId, LockExpiry, block))
-            {
-                // store the used key
-                this.lockKey = lk;
-            }
-
-            return this.IsLockOwner;
+            // perform the necessary syncs
+            _ = this.PerformNeededSyncs(cacheStore, gatewayId, registryManager);
         }
 
         public bool HasValue()
@@ -87,103 +61,136 @@ namespace LoraKeysManagerFacade
         public bool TryGetInfo(out List<DevAddrCacheInfo> info)
         {
             info = null;
-            this.EnsureLockOwner();
 
-            info = this.cacheStore.GetObject<List<DevAddrCacheInfo>>(this.cacheKey);
+            var tmp = this.cacheStore.TryGetHashObject(this.cacheKey);
+            foreach (var tm in tmp)
+            {
+                info.Add(JsonConvert.DeserializeObject<DevAddrCacheInfo>(tm));
+            }
+
             return info != null;
         }
 
         // change
         public bool StoreInfo(DevAddrCacheInfo info, bool initialize = false)
         {
-            this.EnsureLockOwner();
             this.devEUI = info.DevEUI;
 
-            // move above link
-            if (this.TryGetInfo(out var devAddrCacheInfos))
+            return this.cacheStore.TrySetHashObject(this.cacheKey, info.DevEUI, JsonConvert.SerializeObject(info));
+        }
+
+        private async Task PerformNeededSyncs(ILoRaDeviceCacheStore cacheStore, string gatewayId, RegistryManager registryManager)
+        {
+            if (await cacheStore.LockTakeAsync(FullUpdateKey, gatewayId, TimeSpan.FromHours(24)))
             {
-                for (int i = 0; i < devAddrCacheInfos.Count; i++)
+                var ownGlobalLock = false;
+                try
                 {
-                    if (devAddrCacheInfos[i].DevEUI == info.DevEUI)
+                    // if a full update is needed I take the global lock and perform a full reload
+                    // this could be blocking, Inputs? try catch on exception.
+                    if (!await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, gatewayId, TimeSpan.FromMinutes(5), true))
                     {
-                        // in this case this is the same object, we override the value
-                        // Maybe I could compare to avoid saving if unnecessary.
-                        devAddrCacheInfos[i] = info;
-                        return this.cacheStore.StringSet(this.cacheKey, JsonConvert.SerializeObject(devAddrCacheInfos), new TimeSpan(1, 0, 0, 0), initialize);
+                        throw new Exception("Failed to lock the global dev addr update key");
+                    }
+
+                    ownGlobalLock = true;
+                    await this.PerformFullReload(cacheStore, registryManager);
+                    // if successfull i set the delta lock to 5 minutes and release the global lock
+                    // TODO update aswell the last release date
+                    this.cacheStore.StringSet(DeltaUpdateKey, DeltaUpdateKey, TimeSpan.FromMinutes(CacheDeltaUpdateAfterMinutes));
+                }
+                catch (Exception)
+                {
+                    // there was a problem, to deal with iot hub throttling we add some time.
+                    cacheStore.ChangeLockTTL(FullUpdateKey, timeToExpire: TimeSpan.FromMinutes(1)); // on 24
+                }
+                finally
+                {
+                    if (ownGlobalLock)
+                    {
+                        this.cacheStore.LockRelease(GlobalDevAddrUpdateKey, gatewayId);
                     }
                 }
-
-                // this mean this devaddr was not yet saved here.
-                devAddrCacheInfos.Add(info);
-                return this.cacheStore.StringSet(this.cacheKey, JsonConvert.SerializeObject(devAddrCacheInfos), new TimeSpan(1, 0, 0, 0), initialize);
             }
-            else
+            else if (await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, gatewayId, TimeSpan.FromMinutes(5)))
             {
-                // nothing is saved on this devAddr entry
-                List<DevAddrCacheInfo> newDevAddrCacheInfos = new List<DevAddrCacheInfo>(1)
+                if (await this.cacheStore.LockTakeAsync(DeltaUpdateKey, gatewayId, TimeSpan.FromMinutes(5)))
                 {
-                    info
-                };
-
-                return this.cacheStore.StringSet(this.cacheKey, JsonConvert.SerializeObject(newDevAddrCacheInfos), new TimeSpan(1, 0, 0, 0), initialize);
+                    await this.PerformDeltaReload(cacheStore, registryManager);
+                    this.cacheStore.LockRelease(FullUpdateKey, gatewayId);
+                }
             }
         }
 
-        public static void RebuildCache(List<DevAddrCacheInfo> devAddrCacheInfos, ILoRaDeviceCacheStore cacheStore, string gatewayId)
+        private async Task PerformFullReload(ILoRaDeviceCacheStore cacheStore, RegistryManager registryManager)
         {
-            var elementToClear = cacheStore.Scan(CacheKeyPrefix, string.Empty, 10);
+            var query = $"SELECT * FROM devices WHERE is_defined(properties.desired.AppKey) OR is_defined(properties.desired.AppSKey) OR is_defined(properties.desired.NwkSKey)";
+            List<DevAddrCacheInfo> devAddrCacheInfos = await this.GetDeviceTwinsFromIotHub(registryManager, query);
+            this.BulkSaveDevAddrCache(devAddrCacheInfos, true);
+        }
 
-            var hasht = new HashSet<string>();
-            foreach (var element in elementToClear)
+        /// <summary>
+        /// Methof performing a deltaReload
+        /// </summary>
+        private async Task PerformDeltaReload(ILoRaDeviceCacheStore cacheStore, RegistryManager registryManager)
+        {
+            // if the value is null (first call), we take five minutes before this call
+            var lastUpdate = this.cacheStore.StringGet(LastDeltaUpdateKeyValue) ?? DateTime.UtcNow.AddMinutes(-5).ToString();
+            var query = $"SELECT * FROM c where properties.desired.$metadata.$lastUpdated >= '{lastUpdate}' OR properties.reported.$metadata.DevAddr.$lastUpdated >= '{lastUpdate}'";
+            List<DevAddrCacheInfo> devAddrCacheInfos = await this.GetDeviceTwinsFromIotHub(registryManager, query);
+            this.BulkSaveDevAddrCache(devAddrCacheInfos, false);
+        }
+
+        private async Task<List<DevAddrCacheInfo>> GetDeviceTwinsFromIotHub(RegistryManager registryManager, string inputQuery)
+        {
+            var query = registryManager.CreateQuery(inputQuery);
+            this.cacheStore.StringSet(LastDeltaUpdateKeyValue, DateTime.UtcNow.ToString(), TimeSpan.FromDays(1));
+            List<DevAddrCacheInfo> devAddrCacheInfos = new List<DevAddrCacheInfo>();
+            while (query.HasMoreResults)
             {
-                hasht.Add(element.Name);
+                var page = await query.GetNextAsTwinAsync();
+
+                foreach (var twin in page)
+                {
+                    if (twin.DeviceId != null)
+                    {
+                        var device = await registryManager.GetDeviceAsync(twin.DeviceId);
+                        devAddrCacheInfos.Add(new DevAddrCacheInfo()
+                        {
+                            DevAddr = twin.Properties.Desired["DevAddr"] ?? twin.Properties.Reported["DevAddr"],
+                            DevEUI = twin.DeviceId,
+                            GatewayId = twin.Properties.Desired["GatewayId"]
+                        });
+                    }
+                }
             }
 
+            return devAddrCacheInfos;
+        }
+
+        /// <summary>
+        /// Method to bulk save a devAddrCacheInfo list in redis in a call per devAddr
+        /// </summary>
+        private void BulkSaveDevAddrCache(List<DevAddrCacheInfo> devAddrCacheInfos, bool canDeleteDeviceWithDevAddr)
+        {
+            // elements will naturally expire we only need to add new ones
+            var regrouping = devAddrCacheInfos.GroupBy(x => x.DevAddr).ToList();
             // initiate connection
-            // Do we need to lock?
-            for (int i = 0; i < devAddrCacheInfos.Count; i++)
+            for (int i = 0; i < regrouping.Count; i++)
             {
-                var cacheKey = GenerateKey(devAddrCacheInfos[i].DevAddr);
-                cacheStore.ObjectSet(cacheKey, devAddrCacheInfos[i], new TimeSpan(24, 0, 0));
-                hasht.Remove(cacheKey);
+                var cacheKey = GenerateKey(regrouping[i].Key);
+                if (canDeleteDeviceWithDevAddr)
+                {
+                    this.cacheStore.ReplaceHashObjects(cacheKey, regrouping[i].ToList());
+                }
+                else
+                {
+                    foreach (var devEuiObject in regrouping[i])
+                    {
+                        this.cacheStore.TrySetHashObject(cacheKey, devEuiObject.DevEUI, JsonConvert.SerializeObject(devEuiObject));
+                    }
+                }
             }
-
-            foreach (var elementToRemove in hasht)
-            {
-                cacheStore.KeyDelete(elementToRemove);
-            }
-
-            // todo exception?
-            cacheStore.StringSet(string.Concat("lastfullreload:", gatewayId), DateTime.UtcNow.ToString(), null);
-        }
-
-        private void EnsureLockOwner()
-        {
-            if (!this.IsLockOwner)
-            {
-                throw new InvalidOperationException($"Trying to access cache without owning the lock. Device: {this.devEUI} Gateway: {this.gatewayId}");
-            }
-        }
-
-        private void ReleaseLock()
-        {
-            if (!this.IsLockOwner)
-            {
-                return;
-            }
-
-            var released = this.cacheStore.LockRelease(this.lockKey, this.gatewayId);
-            if (!released)
-            {
-                throw new InvalidOperationException("failed to release lock");
-            }
-
-            this.IsLockOwner = false;
-        }
-
-        public void Dispose()
-        {
-            this.ReleaseLock();
         }
     }
 }

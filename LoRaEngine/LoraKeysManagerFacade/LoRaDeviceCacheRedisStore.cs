@@ -102,11 +102,33 @@ namespace LoraKeysManagerFacade
             return list.Select(x => (string)x).ToList();
         }
 
-        // Should be tested toroughly
-        public IEnumerable<HashEntry> Scan(string key, string pattern, int pageSize = 100)
+        public bool TrySetHashObject(string key, string subkey, string value)
         {
-            var results = this.redisCache.HashScan(key);
-            return results;
+            var returnValue = this.redisCache.HashSet(key, subkey, value);
+            this.redisCache.KeyExpire(key, DateTime.UtcNow.AddHours(25));
+            return returnValue;
         }
+
+        public RedisValue[] TryGetHashObject(string key)
+        {
+            return this.redisCache.HashValues(key);
+        }
+
+        public void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list)
+        {
+            HashEntry[] hashEntries = new HashEntry[list.Count];
+            for (int i = 0; i < list.Count; i++)
+            {
+                hashEntries[i] = new HashEntry(list[i].DevEUI, RedisValue.Unbox(list[i]));
+            }
+
+            this.redisCache.HashSet(cacheKey, hashEntries);
+            this.redisCache.KeyExpire(cacheKey, DateTime.UtcNow.AddHours(25));
+        }
+
+        public void ChangeLockTTL(string key, TimeSpan timeToExpire)
+        {
+            this.redisCache.KeyExpire(key, DateTime.UtcNow.Add(timeToExpire));
+                }
     }
 }

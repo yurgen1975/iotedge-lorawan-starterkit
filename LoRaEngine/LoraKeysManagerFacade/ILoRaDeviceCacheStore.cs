@@ -38,6 +38,12 @@ namespace LoraKeysManagerFacade
 
         IReadOnlyList<string> ListGet(string key);
 
-        IEnumerable<HashEntry> Scan(string key, string pattern, int pageSize);
+        bool TrySetHashObject(string key, string subkey, string value);
+
+        RedisValue[] TryGetHashObject(string key);
+
+        void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list);
+
+        void ChangeLockTTL(string key, TimeSpan timeToExpire);
     }
 }
