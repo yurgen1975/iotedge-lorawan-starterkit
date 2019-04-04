@@ -139,33 +139,38 @@ namespace LoraKeysManagerFacade
                 // TODO check for sql injection
                 devAddr = devAddr.Replace('\'', ' ');
                 var devAddrCache = new LoRaDevAddrCache(this.cacheStore, devAddr, gatewayId, this.registryManager);
-
                 if (devAddrCache.TryGetInfo(out List<DevAddrCacheInfo> devAddressesInfo))
                 {
                     for (int i = 0; i < devAddressesInfo.Count; i++)
                     {
-                        // device was not yet populated
-                        if (!string.IsNullOrEmpty(devAddressesInfo[i].PrimaryKey))
+                        if (!string.IsNullOrEmpty(devAddressesInfo[i].DevEUI))
                         {
-                            results.Add(devAddressesInfo[i]);
-                        }
-                        else
-                        {
-                            // we need to load the primaryKey from IoTHub
-                            // Add a lock loadPrimaryKey get lock get
-                            devAddressesInfo[i].PrimaryKey = await this.LoadPrimaryKeyAsync(devAddressesInfo[i].DevEUI);
-                            results.Add(devAddressesInfo[i]);
-                            devAddrCache.StoreInfo(devAddressesInfo[i]);
+                            // device was not yet populated
+                            if (!string.IsNullOrEmpty(devAddressesInfo[i].PrimaryKey))
+                            {
+                                results.Add(devAddressesInfo[i]);
+                            }
+                            else
+                            {
+                                // we need to load the primaryKey from IoTHub
+                                // Add a lock loadPrimaryKey get lock get
+                                devAddressesInfo[i].PrimaryKey = await this.LoadPrimaryKeyAsync(devAddressesInfo[i].DevEUI);
+                                results.Add(devAddressesInfo[i]);
+                                devAddrCache.StoreInfo(devAddressesInfo[i]);
+                            }
                         }
                     }
                 }
 
-                // if the cache results are null, we query the IoT Hub
-                if (results.Count == 0)
+                // if the cache results are null, we query the IoT Hub.
+                // if the device is not found is the cache we query, if there was something, it is probably not our device.
+                if (results.Count == 0 && devAddressesInfo.Count == 0)
                 {
                     var query = this.registryManager.CreateQuery($"SELECT * FROM devices WHERE properties.desired.DevAddr = '{devAddr}' OR properties.reported.DevAddr ='{devAddr}'", 100);
+                    int resultCount = 0;
                     while (query.HasMoreResults)
                     {
+                        resultCount++;
                         var page = await query.GetNextAsTwinAsync();
 
                         foreach (var twin in page)
@@ -183,6 +188,15 @@ namespace LoraKeysManagerFacade
                                 devAddrCache.StoreInfo((DevAddrCacheInfo)iotHubDeviceInfo);
                             }
                         }
+                    }
+
+                    // todo save when not our devaddr
+                    if (resultCount == 0)
+                        {
+                        devAddrCache.StoreInfo(new DevAddrCacheInfo()
+                        {
+                            DevAddr = devAddr
+                        });
                     }
                 }
             }

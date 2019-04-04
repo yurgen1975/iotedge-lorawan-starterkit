@@ -50,7 +50,12 @@ namespace LoraKeysManagerFacade
             this.devAddr = devAddr;
 
             // perform the necessary syncs
-            _ = this.PerformNeededSyncs(cacheStore, gatewayId, registryManager);
+            _ = this.PerformNeededSyncs(registryManager);
+        }
+
+        public LoRaDevAddrCache(ILoRaDeviceCacheStore cacheStore)
+        {
+            this.cacheStore = cacheStore;
         }
 
         public bool HasValue()
@@ -79,45 +84,45 @@ namespace LoraKeysManagerFacade
             return this.cacheStore.TrySetHashObject(this.cacheKey, info.DevEUI, JsonConvert.SerializeObject(info));
         }
 
-        private async Task PerformNeededSyncs(ILoRaDeviceCacheStore cacheStore, string gatewayId, RegistryManager registryManager)
+        internal async Task PerformNeededSyncs(RegistryManager registryManager)
         {
-            if (await cacheStore.LockTakeAsync(FullUpdateKey, gatewayId, TimeSpan.FromHours(24)))
+            // todo the key should be shared, so no gwID
+            if (await this.cacheStore.LockTakeAsync(FullUpdateKey, FullUpdateKey, TimeSpan.FromHours(24)))
             {
                 var ownGlobalLock = false;
                 try
                 {
                     // if a full update is needed I take the global lock and perform a full reload
-                    // this could be blocking, Inputs? try catch on exception.
-                    if (!await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, gatewayId, TimeSpan.FromMinutes(5), true))
+                    if (!await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey, TimeSpan.FromMinutes(5), true))
                     {
                         throw new Exception("Failed to lock the global dev addr update key");
                     }
 
                     ownGlobalLock = true;
-                    await this.PerformFullReload(cacheStore, registryManager);
+                    await this.PerformFullReload(this.cacheStore, registryManager);
                     // if successfull i set the delta lock to 5 minutes and release the global lock
-                    // TODO update aswell the last release date
+                    this.cacheStore.StringSet(LastDeltaUpdateKeyValue, DateTime.UtcNow.ToString(), TimeSpan.FromDays(1));
                     this.cacheStore.StringSet(DeltaUpdateKey, DeltaUpdateKey, TimeSpan.FromMinutes(CacheDeltaUpdateAfterMinutes));
                 }
                 catch (Exception)
                 {
                     // there was a problem, to deal with iot hub throttling we add some time.
-                    cacheStore.ChangeLockTTL(FullUpdateKey, timeToExpire: TimeSpan.FromMinutes(1)); // on 24
+                    this.cacheStore.ChangeLockTTL(FullUpdateKey, timeToExpire: TimeSpan.FromMinutes(1)); // on 24
                 }
                 finally
                 {
                     if (ownGlobalLock)
                     {
-                        this.cacheStore.LockRelease(GlobalDevAddrUpdateKey, gatewayId);
+                        this.cacheStore.LockRelease(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey);
                     }
                 }
             }
-            else if (await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, gatewayId, TimeSpan.FromMinutes(5)))
+            else if (await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey, TimeSpan.FromMinutes(5)))
             {
-                if (await this.cacheStore.LockTakeAsync(DeltaUpdateKey, gatewayId, TimeSpan.FromMinutes(5)))
+                if (await this.cacheStore.LockTakeAsync(DeltaUpdateKey, DeltaUpdateKey, TimeSpan.FromMinutes(5)))
                 {
-                    await this.PerformDeltaReload(cacheStore, registryManager);
-                    this.cacheStore.LockRelease(FullUpdateKey, gatewayId);
+                    await this.PerformDeltaReload(this.cacheStore, registryManager);
+                    this.cacheStore.LockRelease(FullUpdateKey, FullUpdateKey);
                 }
             }
         }

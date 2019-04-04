@@ -50,8 +50,7 @@ namespace LoraKeysManagerFacade
             builder.Services.AddSingleton<IFunctionBundlerExecutionItem, DeduplicationExecutionItem>();
             builder.Services.AddSingleton<IFunctionBundlerExecutionItem, ADRExecutionItem>();
             builder.Services.AddSingleton<IFunctionBundlerExecutionItem, PreferredGatewayExecutionItem>();
-
-            // builder.Services.AddSingleton<IHostedService,>();
+            builder.Services.AddSingleton<IHostedService, DevAddressCacheManager>();
         }
 
         abstract class ConfigHandler
