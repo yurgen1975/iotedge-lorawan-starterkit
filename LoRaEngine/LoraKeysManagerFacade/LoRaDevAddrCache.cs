@@ -14,14 +14,16 @@ namespace LoraKeysManagerFacade
 
     public sealed class LoRaDevAddrCache
     {
-        public const int CacheDeltaUpdateAfterMinutes = 5;
-        public const int CacheFullReloadAfterHours = 24;
         private const string DeltaUpdateKey = "deltaUpdateKey";
         private const string LastDeltaUpdateKeyValue = "lastDeltaUpdateKeyValue";
         private const string FullUpdateKey = "fullUpdateKey";
         private const string GlobalDevAddrUpdateKey = "globalUpdateKey";
         private const string CacheKeyPrefix = "devAddrTable:";
         private static readonly TimeSpan LockExpiry = TimeSpan.FromSeconds(10);
+        private static readonly TimeSpan FullUpdateKeyTimeSpan = TimeSpan.FromHours(25);
+        private static readonly TimeSpan DeltaUpdateKeyTimeSpan = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan GlobalDevAddrUpdateKeyTimeSpan = TimeSpan.FromMinutes(2);
+        private static readonly TimeSpan DevAddrObjectsTTL = TimeSpan.FromHours(24);
 
         private readonly ILoRaDeviceCacheStore cacheStore;
         private readonly string gatewayId;
@@ -37,11 +39,6 @@ namespace LoraKeysManagerFacade
             if (string.IsNullOrEmpty(devAddr))
             {
                 throw new ArgumentNullException("devAddr");
-            }
-
-            if (string.IsNullOrEmpty(gatewayId))
-            {
-                throw new ArgumentNullException("gatewayId");
             }
 
             this.cacheStore = cacheStore;
@@ -65,15 +62,18 @@ namespace LoraKeysManagerFacade
 
         public bool TryGetInfo(out List<DevAddrCacheInfo> info)
         {
-            info = null;
+            info = new List<DevAddrCacheInfo>();
 
             var tmp = this.cacheStore.TryGetHashObject(this.cacheKey);
-            foreach (var tm in tmp)
+            if (tmp?.Length > 0)
             {
-                info.Add(JsonConvert.DeserializeObject<DevAddrCacheInfo>(tm));
+                foreach (var tm in tmp)
+                {
+                    info.Add(JsonConvert.DeserializeObject<DevAddrCacheInfo>(tm));
+                }
             }
 
-            return info != null;
+            return info.Count > 0;
         }
 
         // change
@@ -86,23 +86,23 @@ namespace LoraKeysManagerFacade
 
         internal async Task PerformNeededSyncs(RegistryManager registryManager)
         {
-            // todo the key should be shared, so no gwID
-            if (await this.cacheStore.LockTakeAsync(FullUpdateKey, FullUpdateKey, TimeSpan.FromHours(24)))
+            if (await this.cacheStore.LockTakeAsync(FullUpdateKey, FullUpdateKey, FullUpdateKeyTimeSpan))
             {
                 var ownGlobalLock = false;
                 try
                 {
                     // if a full update is needed I take the global lock and perform a full reload
-                    if (!await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey, TimeSpan.FromMinutes(5), true))
+                    if (!await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKeyTimeSpan, true))
                     {
+                        // should that really be a exception, this is somehow expected?
                         throw new Exception("Failed to lock the global dev addr update key");
                     }
 
                     ownGlobalLock = true;
                     await this.PerformFullReload(this.cacheStore, registryManager);
                     // if successfull i set the delta lock to 5 minutes and release the global lock
-                    this.cacheStore.StringSet(LastDeltaUpdateKeyValue, DateTime.UtcNow.ToString(), TimeSpan.FromDays(1));
-                    this.cacheStore.StringSet(DeltaUpdateKey, DeltaUpdateKey, TimeSpan.FromMinutes(CacheDeltaUpdateAfterMinutes));
+                    this.cacheStore.StringSet(FullUpdateKey, DateTime.UtcNow.ToString(), FullUpdateKeyTimeSpan);
+                    this.cacheStore.StringSet(DeltaUpdateKey, DeltaUpdateKey, DeltaUpdateKeyTimeSpan);
                 }
                 catch (Exception)
                 {
@@ -119,10 +119,17 @@ namespace LoraKeysManagerFacade
             }
             else if (await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey, TimeSpan.FromMinutes(5)))
             {
-                if (await this.cacheStore.LockTakeAsync(DeltaUpdateKey, DeltaUpdateKey, TimeSpan.FromMinutes(5)))
+                try
                 {
-                    await this.PerformDeltaReload(this.cacheStore, registryManager);
-                    this.cacheStore.LockRelease(FullUpdateKey, FullUpdateKey);
+                    if (await this.cacheStore.LockTakeAsync(DeltaUpdateKey, DeltaUpdateKey, TimeSpan.FromMinutes(5)))
+                    {
+                        await this.PerformDeltaReload(this.cacheStore, registryManager);
+                        this.cacheStore.LockRelease(FullUpdateKey, FullUpdateKey);
+                    }
+                }
+                finally
+                {
+                    this.cacheStore.LockRelease(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey);
                 }
             }
         }
@@ -160,11 +167,25 @@ namespace LoraKeysManagerFacade
                     if (twin.DeviceId != null)
                     {
                         var device = await registryManager.GetDeviceAsync(twin.DeviceId);
+                        string currentDevAddr;
+                        if (twin.Properties.Desired.Contains("DevAddr"))
+                        {
+                            currentDevAddr = twin.Properties.Desired["DevAddr"].Value as string;
+                        }
+                        else if (twin.Properties.Reported.Contains("DevAddr"))
+                        {
+                            currentDevAddr = twin.Properties.Reported["DevAddr"].Value as string;
+                        }
+                        else
+                        {
+                            continue;
+                        }
+
                         devAddrCacheInfos.Add(new DevAddrCacheInfo()
                         {
-                            DevAddr = twin.Properties.Desired["DevAddr"] ?? twin.Properties.Reported["DevAddr"],
+                            DevAddr = currentDevAddr,
                             DevEUI = twin.DeviceId,
-                            GatewayId = twin.Properties.Desired["GatewayId"]
+                            GatewayId = twin.Properties.Desired.Contains("GatewayId") ? twin.Properties.Desired["GatewayId"].Value as string : string.Empty
                         });
                     }
                 }
@@ -186,13 +207,13 @@ namespace LoraKeysManagerFacade
                 var cacheKey = GenerateKey(regrouping[i].Key);
                 if (canDeleteDeviceWithDevAddr)
                 {
-                    this.cacheStore.ReplaceHashObjects(cacheKey, regrouping[i].ToList());
+                    this.cacheStore.ReplaceHashObjects(cacheKey, regrouping[i].ToList(), DevAddrObjectsTTL);
                 }
                 else
                 {
                     foreach (var devEuiObject in regrouping[i])
                     {
-                        this.cacheStore.TrySetHashObject(cacheKey, devEuiObject.DevEUI, JsonConvert.SerializeObject(devEuiObject));
+                        this.cacheStore.TrySetHashObject(cacheKey, devEuiObject.DevEUI, JsonConvert.SerializeObject(devEuiObject), DevAddrObjectsTTL);
                     }
                 }
             }

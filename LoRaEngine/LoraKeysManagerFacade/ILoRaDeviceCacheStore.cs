@@ -38,11 +38,11 @@ namespace LoraKeysManagerFacade
 
         IReadOnlyList<string> ListGet(string key);
 
-        bool TrySetHashObject(string key, string subkey, string value);
+        bool TrySetHashObject(string key, string subkey, string value, TimeSpan? timeToExpire = null);
 
         RedisValue[] TryGetHashObject(string key);
 
-        void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list);
+        void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list, TimeSpan? timeToExpire = null);
 
         void ChangeLockTTL(string key, TimeSpan timeToExpire);
     }

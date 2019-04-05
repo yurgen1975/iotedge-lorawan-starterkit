@@ -102,10 +102,14 @@ namespace LoraKeysManagerFacade
             return list.Select(x => (string)x).ToList();
         }
 
-        public bool TrySetHashObject(string key, string subkey, string value)
+        public bool TrySetHashObject(string cacheKey, string subkey, string value, TimeSpan? timeToExpire = null)
         {
-            var returnValue = this.redisCache.HashSet(key, subkey, value);
-            this.redisCache.KeyExpire(key, DateTime.UtcNow.AddHours(25));
+            var returnValue = this.redisCache.HashSet(cacheKey, subkey, value);
+            if (timeToExpire.HasValue)
+            {
+                this.redisCache.KeyExpire(cacheKey, DateTime.UtcNow.Add(timeToExpire.Value));
+            }
+
             return returnValue;
         }
 
@@ -114,21 +118,24 @@ namespace LoraKeysManagerFacade
             return this.redisCache.HashValues(key);
         }
 
-        public void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list)
+        public void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list, TimeSpan? timeToExpire = null)
         {
             HashEntry[] hashEntries = new HashEntry[list.Count];
             for (int i = 0; i < list.Count; i++)
             {
-                hashEntries[i] = new HashEntry(list[i].DevEUI, RedisValue.Unbox(list[i]));
+                hashEntries[i] = new HashEntry(list[i].DevEUI, JsonConvert.SerializeObject(list[i]));
             }
 
             this.redisCache.HashSet(cacheKey, hashEntries);
-            this.redisCache.KeyExpire(cacheKey, DateTime.UtcNow.AddHours(25));
+            if (timeToExpire.HasValue)
+            {
+                this.redisCache.KeyExpire(cacheKey, DateTime.UtcNow.Add(timeToExpire.Value));
+            }
         }
 
         public void ChangeLockTTL(string key, TimeSpan timeToExpire)
         {
-            this.redisCache.KeyExpire(key, DateTime.UtcNow.Add(timeToExpire));
+                this.redisCache.KeyExpire(key, DateTime.UtcNow.Add(timeToExpire));
         }
     }
 }
