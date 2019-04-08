@@ -10,22 +10,25 @@ namespace LoraKeysManagerFacade
     using System.Threading.Tasks;
     using Microsoft.Azure.Devices;
     using Microsoft.Extensions.Hosting;
+    using Microsoft.Extensions.Logging;
 
     class DevAddressCacheManager : IHostedService
     {
         private readonly RegistryManager registryManager;
         private readonly ILoRaDeviceCacheStore cacheStore;
+        private readonly ILogger<DevAddressCacheManager> logger;
 
-        public DevAddressCacheManager(RegistryManager registryManager, ILoRaDeviceCacheStore cacheStore)
+        public DevAddressCacheManager(RegistryManager registryManager, ILoRaDeviceCacheStore cacheStore, ILogger<DevAddressCacheManager> logger)
         {
             this.registryManager = registryManager;
             this.cacheStore = cacheStore;
+            this.logger = logger;
         }
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            LoRaDevAddrCache loRaDevAddrCache = new LoRaDevAddrCache(this.cacheStore);
-            // Tocheck should we wait?
+            LoRaDevAddrCache loRaDevAddrCache = new LoRaDevAddrCache(this.cacheStore, this.logger);
+            // To check should we wait?
             await loRaDevAddrCache.PerformNeededSyncs(this.registryManager);
         }
 

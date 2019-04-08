@@ -40,9 +40,10 @@ namespace LoraKeysManagerFacade
 
         bool TrySetHashObject(string key, string subkey, string value, TimeSpan? timeToExpire = null);
 
-        RedisValue[] TryGetHashObject(string key);
+        HashEntry[] TryGetHashObject(string key);
 
-        void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list, TimeSpan? timeToExpire = null);
+        void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null)
+            where T : class;
 
         void ChangeLockTTL(string key, TimeSpan timeToExpire);
     }

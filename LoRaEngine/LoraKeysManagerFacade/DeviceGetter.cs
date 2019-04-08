@@ -132,7 +132,7 @@ namespace LoraKeysManagerFacade
 
                 // TODO check for sql injection
                 devAddr = devAddr.Replace('\'', ' ');
-                var devAddrCache = new LoRaDevAddrCache(this.cacheStore, devAddr, gatewayId, this.registryManager);
+                var devAddrCache = new LoRaDevAddrCache(this.cacheStore, devAddr, gatewayId, this.registryManager, log);
                 if (devAddrCache.TryGetInfo(out List<DevAddrCacheInfo> devAddressesInfo))
                 {
                     for (int i = 0; i < devAddressesInfo.Count; i++)

@@ -9,6 +9,7 @@ namespace LoraKeysManagerFacade
     using System.Threading.Tasks;
     using Microsoft.Azure.Devices;
     using Microsoft.Azure.WebJobs;
+    using Microsoft.Extensions.Logging;
     using Newtonsoft.Json;
     using StackExchange.Redis;
 
@@ -26,6 +27,7 @@ namespace LoraKeysManagerFacade
         private static readonly TimeSpan DevAddrObjectsTTL = TimeSpan.FromHours(24);
 
         private readonly ILoRaDeviceCacheStore cacheStore;
+        private readonly ILogger logger;
         private readonly string gatewayId;
         private readonly string cacheKey;
         private readonly string devAddr;
@@ -33,8 +35,7 @@ namespace LoraKeysManagerFacade
 
         private static string GenerateKey(string devAddr) => CacheKeyPrefix + devAddr;
 
-        // How do I detect for first boot??? Need to set LastFullReload
-        public LoRaDevAddrCache(ILoRaDeviceCacheStore cacheStore, string devAddr, string gatewayId, RegistryManager registryManager)
+        public LoRaDevAddrCache(ILoRaDeviceCacheStore cacheStore, string devAddr, string gatewayId, RegistryManager registryManager, ILogger logger)
         {
             if (string.IsNullOrEmpty(devAddr))
             {
@@ -45,14 +46,20 @@ namespace LoraKeysManagerFacade
             this.gatewayId = gatewayId;
             this.cacheKey = GenerateKey(devAddr);
             this.devAddr = devAddr;
+            this.logger = logger;
 
             // perform the necessary syncs
             _ = this.PerformNeededSyncs(registryManager);
         }
 
-        public LoRaDevAddrCache(ILoRaDeviceCacheStore cacheStore)
+        /// <summary>
+        /// Initializes a new instance of the <see cref="LoRaDevAddrCache"/> class.
+        /// This constructor is only used by the DI Manager. Use the other constructore for general usage.
+        /// </summary>
+        public LoRaDevAddrCache(ILoRaDeviceCacheStore cacheStore, ILogger logger)
         {
             this.cacheStore = cacheStore;
+            this.logger = logger;
         }
 
         public bool HasValue()
@@ -69,7 +76,7 @@ namespace LoraKeysManagerFacade
             {
                 foreach (var tm in tmp)
                 {
-                    info.Add(JsonConvert.DeserializeObject<DevAddrCacheInfo>(tm));
+                    info.Add(JsonConvert.DeserializeObject<DevAddrCacheInfo>(tm.Value));
                 }
             }
 
@@ -99,7 +106,7 @@ namespace LoraKeysManagerFacade
                     }
 
                     ownGlobalLock = true;
-                    await this.PerformFullReload(this.cacheStore, registryManager);
+                    await this.PerformFullReload(registryManager);
                     // if successfull i set the delta lock to 5 minutes and release the global lock
                     this.cacheStore.StringSet(FullUpdateKey, DateTime.UtcNow.ToString(), FullUpdateKeyTimeSpan);
                     this.cacheStore.StringSet(DeltaUpdateKey, DeltaUpdateKey, DeltaUpdateKeyTimeSpan);
@@ -123,9 +130,11 @@ namespace LoraKeysManagerFacade
                 {
                     if (await this.cacheStore.LockTakeAsync(DeltaUpdateKey, DeltaUpdateKey, TimeSpan.FromMinutes(5)))
                     {
-                        await this.PerformDeltaReload(this.cacheStore, registryManager);
-                        this.cacheStore.LockRelease(FullUpdateKey, FullUpdateKey);
+                        await this.PerformDeltaReload(registryManager);
                     }
+                }
+                catch (Exception)
+                {
                 }
                 finally
                 {
@@ -134,7 +143,10 @@ namespace LoraKeysManagerFacade
             }
         }
 
-        private async Task PerformFullReload(ILoRaDeviceCacheStore cacheStore, RegistryManager registryManager)
+        /// <summary>
+        /// Perform a full relaoad on the dev address cache. This occur typically once every 24 h.
+        /// </summary>
+        private async Task PerformFullReload(RegistryManager registryManager)
         {
             var query = $"SELECT * FROM devices WHERE is_defined(properties.desired.AppKey) OR is_defined(properties.desired.AppSKey) OR is_defined(properties.desired.NwkSKey)";
             List<DevAddrCacheInfo> devAddrCacheInfos = await this.GetDeviceTwinsFromIotHub(registryManager, query);
@@ -142,9 +154,9 @@ namespace LoraKeysManagerFacade
         }
 
         /// <summary>
-        /// Methof performing a deltaReload
+        /// Method performing a deltaReload. Typically occur every 5 minutes.
         /// </summary>
-        private async Task PerformDeltaReload(ILoRaDeviceCacheStore cacheStore, RegistryManager registryManager)
+        private async Task PerformDeltaReload(RegistryManager registryManager)
         {
             // if the value is null (first call), we take five minutes before this call
             var lastUpdate = this.cacheStore.StringGet(LastDeltaUpdateKeyValue) ?? DateTime.UtcNow.AddMinutes(-5).ToString();
@@ -200,22 +212,22 @@ namespace LoraKeysManagerFacade
         private void BulkSaveDevAddrCache(List<DevAddrCacheInfo> devAddrCacheInfos, bool canDeleteDeviceWithDevAddr)
         {
             // elements will naturally expire we only need to add new ones
-            var regrouping = devAddrCacheInfos.GroupBy(x => x.DevAddr).ToList();
-            // initiate connection
-            for (int i = 0; i < regrouping.Count; i++)
+            var regrouping = devAddrCacheInfos.GroupBy(x => x.DevAddr);
+            foreach (var elementPerDevAddr in regrouping)
             {
-                var cacheKey = GenerateKey(regrouping[i].Key);
+                var cacheKey = GenerateKey(elementPerDevAddr.Key);
+                var devicesByDevEui = elementPerDevAddr.ToDictionary(x => x.DevEUI);
                 if (canDeleteDeviceWithDevAddr)
-                {
-                    this.cacheStore.ReplaceHashObjects(cacheKey, regrouping[i].ToList(), DevAddrObjectsTTL);
-                }
-                else
-                {
-                    foreach (var devEuiObject in regrouping[i])
                     {
-                        this.cacheStore.TrySetHashObject(cacheKey, devEuiObject.DevEUI, JsonConvert.SerializeObject(devEuiObject), DevAddrObjectsTTL);
+                        this.cacheStore.ReplaceHashObjects(cacheKey, devicesByDevEui, DevAddrObjectsTTL);
                     }
-                }
+                    else
+                    {
+                        foreach (var devEuiObject in devicesByDevEui.Values)
+                        {
+                            this.cacheStore.TrySetHashObject(cacheKey, devEuiObject.DevEUI, JsonConvert.SerializeObject(devEuiObject), DevAddrObjectsTTL);
+                        }
+                    }
             }
         }
     }

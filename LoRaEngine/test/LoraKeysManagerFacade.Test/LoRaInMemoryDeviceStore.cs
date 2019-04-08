@@ -140,7 +140,7 @@ namespace LoraKeysManagerFacade.Test
             throw new NotImplementedException();
         }
 
-        public RedisValue[] TryGetHashObject(string key)
+        public HashEntry[] TryGetHashObject(string key)
         {
             throw new NotImplementedException();
         }
@@ -160,7 +160,8 @@ namespace LoraKeysManagerFacade.Test
             throw new NotImplementedException();
         }
 
-        public void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list, TimeSpan? timeToExpire = null)
+        public void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null)
+            where T : class
         {
             throw new NotImplementedException();
         }

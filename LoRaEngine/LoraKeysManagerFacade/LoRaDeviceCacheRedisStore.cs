@@ -25,7 +25,7 @@ namespace LoraKeysManagerFacade
         {
             var start = DateTime.UtcNow;
             var taken = false;
-            while (!(taken = this.redisCache.LockTake(key, lockOwner, expiration)) && block)
+            while (!(taken = this.redisCache.LockTake(key, lockOwner, expiration, CommandFlags.DemandMaster)) && block)
             {
                 if (DateTime.UtcNow - start > LockTimeout)
                     break;
@@ -113,20 +113,23 @@ namespace LoraKeysManagerFacade
             return returnValue;
         }
 
-        public RedisValue[] TryGetHashObject(string key)
+        public HashEntry[] TryGetHashObject(string key)
         {
-            return this.redisCache.HashValues(key);
+            return this.redisCache.HashGetAll(key);
         }
 
-        public void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list, TimeSpan? timeToExpire = null)
+        public void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null)
+            where T : class
         {
-            HashEntry[] hashEntries = new HashEntry[list.Count];
-            for (int i = 0; i < list.Count; i++)
+            HashEntry[] hashEntries = new HashEntry[input.Count];
+            int i = 0;
+            foreach (var element in input)
             {
-                hashEntries[i] = new HashEntry(list[i].DevEUI, JsonConvert.SerializeObject(list[i]));
+                hashEntries[i] = new HashEntry(element.Key, JsonConvert.SerializeObject(element.Value));
+                i++;
             }
 
-            this.redisCache.HashSet(cacheKey, hashEntries);
+            this.redisCache.HashSet(cacheKey, hashEntries, CommandFlags.DemandMaster);
             if (timeToExpire.HasValue)
             {
                 this.redisCache.KeyExpire(cacheKey, DateTime.UtcNow.Add(timeToExpire.Value));
