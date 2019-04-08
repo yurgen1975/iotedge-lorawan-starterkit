@@ -10,5 +10,12 @@ namespace LoraKeysManagerFacade
     public class DevAddrCacheInfo : IoTHubDeviceInfo
     {
         public string GatewayId { get; set; }
+
+        internal bool IsEqual(DevAddrCacheInfo oldElement)
+        {
+            return this.GatewayId == oldElement.GatewayId
+                && this.DevAddr == oldElement.DevAddr
+                && this.DevEUI == oldElement.DevEUI;
+                }
     }
 }

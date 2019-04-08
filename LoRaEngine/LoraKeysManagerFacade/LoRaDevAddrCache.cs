@@ -209,6 +209,7 @@ namespace LoraKeysManagerFacade
         /// <summary>
         /// Method to bulk save a devAddrCacheInfo list in redis in a call per devAddr
         /// </summary>
+        /// <param name="canDeleteDeviceWithDevAddr"> Should delete all other elements non present in this list?</param>
         private void BulkSaveDevAddrCache(List<DevAddrCacheInfo> devAddrCacheInfos, bool canDeleteDeviceWithDevAddr)
         {
             // elements will naturally expire we only need to add new ones
@@ -216,19 +217,68 @@ namespace LoraKeysManagerFacade
             foreach (var elementPerDevAddr in regrouping)
             {
                 var cacheKey = GenerateKey(elementPerDevAddr.Key);
-                var devicesByDevEui = elementPerDevAddr.ToDictionary(x => x.DevEUI);
-                if (canDeleteDeviceWithDevAddr)
-                    {
-                        this.cacheStore.ReplaceHashObjects(cacheKey, devicesByDevEui, DevAddrObjectsTTL);
-                    }
-                    else
-                    {
-                        foreach (var devEuiObject in devicesByDevEui.Values)
-                        {
-                            this.cacheStore.TrySetHashObject(cacheKey, devEuiObject.DevEUI, JsonConvert.SerializeObject(devEuiObject), DevAddrObjectsTTL);
-                        }
-                    }
+                var currentDevAddrEntry = this.cacheStore.TryGetHashObject(cacheKey);
+                var devicesByDevEui = this.KeepExistingCacheInformation(currentDevAddrEntry, elementPerDevAddr, canDeleteDeviceWithDevAddr);
+                if (devicesByDevEui != null)
+                {
+                    this.cacheStore.ReplaceHashObjects(cacheKey, devicesByDevEui, DevAddrObjectsTTL);
+                }
             }
         }
+
+        /// <summary>
+        /// Method to make sure we keep information currently available in the cache and we don't perform unnessecary updates.
+        /// </summary>
+        private Dictionary<string, DevAddrCacheInfo> KeepExistingCacheInformation(HashEntry[] currentDevEUIEntry, IGrouping<string, DevAddrCacheInfo> newDevEUIList, bool canDeleteExistingDevice)
+        {
+            // if the new value are not different we want to ensure we don't save, to not update the TTL of the item.
+            bool areNewValuesDifferent = false;
+            Dictionary<string, DevAddrCacheInfo> returnValues = new Dictionary<string, DevAddrCacheInfo>();
+            var newValues = newDevEUIList.ToDictionary(x => x.DevEUI);
+            var oldValues = new Dictionary<string, DevAddrCacheInfo>();
+
+            foreach (var devEUIEntry in currentDevEUIEntry)
+            {
+                oldValues.Add(devEUIEntry.Name, JsonConvert.DeserializeObject<DevAddrCacheInfo>(devEUIEntry.Value));
+            }
+
+            // if we can delete existing devices in the devadr cache, we take the new list as base, otherwise we take the old one.
+            if (canDeleteExistingDevice)
+            {
+                return this.MergeOldAndNewChanges(ref areNewValuesDifferent, newValues, oldValues, false);
+            }
+            else
+            {
+                return this.MergeOldAndNewChanges(ref areNewValuesDifferent, oldValues, newValues, true);
+            }
+        }
+
+        private Dictionary<string, DevAddrCacheInfo> MergeOldAndNewChanges(ref bool areNewValuesDifferent, Dictionary<string, DevAddrCacheInfo> valueArrayResult, Dictionary<string, DevAddrCacheInfo> valueArrayimport, bool saveGateway)
+        {
+            foreach (var resultValue in valueArrayResult)
+            {
+                if (valueArrayimport.ContainsKey(resultValue.Key))
+                {
+                    if (!resultValue.Value.IsEqual(valueArrayimport[resultValue.Key]))
+                    {
+                        // the item is different we need to save it
+                        areNewValuesDifferent = true;
+                    }
+
+                    resultValue.Value.PrimaryKey = valueArrayimport[resultValue.Key].PrimaryKey;
+                    if (saveGateway)
+                    {
+                        resultValue.Value.GatewayId = valueArrayimport[resultValue.Key].GatewayId;
+                    }
+                }
+                else
+                {
+                    // there is an additional item, we need to save
+                    areNewValuesDifferent = true;
+                }
+            }
+
+            return areNewValuesDifferent ? valueArrayResult : null;
+        }
     }
-}
+    }
