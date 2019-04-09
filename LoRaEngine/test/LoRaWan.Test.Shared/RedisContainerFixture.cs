@@ -27,9 +27,12 @@ namespace LoRaWan.Test.Shared
 
         private async Task StartRedisContainer()
         {
-            using (var conf = new DockerClientConfiguration(new Uri("npipe://./pipe/docker_engine"))) // localhost
+            System.Console.WriteLine("Starting container");
+            using (var conf = new DockerClientConfiguration(new Uri("unix:///var/run/docker.sock"))) // localhost
             using (var client = conf.CreateClient())
             {
+                System.Console.WriteLine("Starting container...");
+
                 var containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
                 var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
                 if (container == null)

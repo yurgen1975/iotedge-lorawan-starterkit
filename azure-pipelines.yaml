@@ -67,8 +67,7 @@ jobs:
 
   # build LoRa Simulator
   - script: dotnet build --configuration $(buildConfiguration) ./LoRaEngine/modules/LoRaSimulator/LoRaSimulator.sln
-    displayName: Build LoRa Simulator    
-    
+    displayName: Build LoRa Simulator
 
   # Run unit tests
   - script: |
