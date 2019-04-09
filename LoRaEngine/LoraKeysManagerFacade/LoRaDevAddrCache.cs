@@ -84,11 +84,15 @@ namespace LoraKeysManagerFacade
         }
 
         // change
-        public bool StoreInfo(DevAddrCacheInfo info, bool initialize = false)
+        public bool StoreInfo(DevAddrCacheInfo info, bool initialize = false, string cacheKey = "")
         {
             this.devEUI = info.DevEUI;
+            if (string.IsNullOrEmpty(cacheKey))
+            {
+                return this.cacheStore.TrySetHashObject(this.cacheKey, info.DevEUI, JsonConvert.SerializeObject(info));
+            }
 
-            return this.cacheStore.TrySetHashObject(this.cacheKey, info.DevEUI, JsonConvert.SerializeObject(info));
+            return this.cacheStore.TrySetHashObject(GenerateKey(cacheKey), info.DevEUI, JsonConvert.SerializeObject(info));
         }
 
         internal async Task PerformNeededSyncs(RegistryManager registryManager)

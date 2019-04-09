@@ -75,6 +75,10 @@ namespace LoRaWan.Test.Shared
                     containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
                     container = containers.First(c => c.ID == response.ID);
                 }
+                else
+                {
+                    containerId = container.ID;
+                }
 
                 System.Console.WriteLine("Container created");
 
@@ -119,7 +123,10 @@ namespace LoRaWan.Test.Shared
             using (var conf = new DockerClientConfiguration(new Uri("npipe://./pipe/docker_engine"))) // localhost
             using (var client = conf.CreateClient())
             {
-                client.Containers.RemoveContainerAsync(containerId, null);
+                client.Containers.RemoveContainerAsync(containerId, new ContainerRemoveParameters()
+                {
+                    Force = true
+                });
             }
         }
     }

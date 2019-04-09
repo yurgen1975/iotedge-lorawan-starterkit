@@ -13,10 +13,16 @@ namespace LoraKeysManagerFacade.Test
     using Microsoft.Azure.Devices;
     using Microsoft.Azure.Devices.Shared;
     using Moq;
+    using Newtonsoft.Json;
     using Xunit;
 
     public class DevAddrCacheTest : FunctionTestBase, IClassFixture<RedisContainerFixture>, IClassFixture<RedisFixture>
     {
+        private const string FullUpdateKey = "fullUpdateKey";
+        private const string GlobalDevAddrUpdateKey = "globalUpdateKey";
+        private const string DeltaUpdateKey = "deltaUpdateKey";
+        private const string CacheKeyPrefix = "devAddrTable:";
+
         private const string PrimaryKey = "ABCDEFGH1234567890";
         private readonly RedisContainerFixture redisContainer;
         private readonly ILoRaDeviceCacheStore cache;
@@ -27,9 +33,10 @@ namespace LoraKeysManagerFacade.Test
             this.cache = new LoRaDeviceCacheRedisStore(redis.Database);
         }
 
-        private RegistryManager InitRegistryManager(string[] deviceIds)
+        private Mock<RegistryManager> InitRegistryManager(List<DevAddrCacheInfo> deviceIds)
         {
-            List<Device> currentDevices = new List<Device>();
+            string currentDevAddr = string.Empty;
+            List<DevAddrCacheInfo> currentDevices = deviceIds;
             var mockRegistryManager = new Mock<RegistryManager>(MockBehavior.Strict);
             var primaryKey = Convert.ToBase64String(Encoding.UTF8.GetBytes(PrimaryKey));
             mockRegistryManager
@@ -40,56 +47,123 @@ namespace LoraKeysManagerFacade.Test
                 .Setup(x => x.GetTwinAsync(It.IsNotNull<string>()))
                 .ReturnsAsync((string deviceId) => new Twin(deviceId));
 
-            int numberOfDevices = deviceIds.Length;
+            int numberOfDevices = deviceIds.Count;
             int deviceCount = 0;
 
             // CacheMiss query
-            var cacheMissQueryMock = new Mock<IQuery>(MockBehavior.Loose);
+            var cacheMissQueryMock = new Mock<IQuery>(MockBehavior.Strict);
             cacheMissQueryMock
                 .Setup(x => x.HasMoreResults)
-                .Returns(() => (deviceCount < numberOfDevices));
-
-            IEnumerable<Twin> Twins()
-            {
-                while (deviceCount < numberOfDevices)
+                .Returns(() =>
                 {
-                    yield return new Twin(deviceIds[deviceCount++]);
-                }
-            }
+                    return deviceCount++ < currentDevices.Where(z => z.DevAddr == currentDevAddr).Count();
+                });
 
             cacheMissQueryMock
                 .Setup(x => x.GetNextAsTwinAsync())
-                .ReturnsAsync(Twins());
+                .ReturnsAsync(() =>
+                {
+                    var devAddressesToConsider = currentDevices.Where(v => v.DevAddr == currentDevAddr);
+                    List<Twin> twins = new List<Twin>();
+                    foreach (var devaddrItem in devAddressesToConsider)
+                    {
+                        var deviceTwin = new Twin();
+                        deviceTwin.DeviceId = devaddrItem.DevEUI;
+                        deviceTwin.Properties = new TwinProperties()
+                        {
+                            Desired = new TwinCollection($"{{\"DevAddr\": \"{devaddrItem.DevAddr}\", \"GatewayId\": \"{devaddrItem.GatewayId}\"}}"),
+                        };
+
+                        twins.Add(deviceTwin);
+                    }
+                    return twins;
+                });
 
             mockRegistryManager
                 .Setup(x => x.CreateQuery(It.Is<string>(z => z.Contains("SELECT * FROM devices WHERE properties.desired.DevAddr =")), 100))
                 .Returns((string query, int pageSize) =>
                 {
-                    var devAddr = query.Split('\'')[1];
+                    currentDevAddr = query.Split('\'')[1];
                     return cacheMissQueryMock.Object;
                 });
 
-            return mockRegistryManager.Object;
+            return mockRegistryManager;
+        }
+
+        private void InitCache(ILoRaDeviceCacheStore cache, List<DevAddrCacheInfo> deviceIds)
+        {
+            var loradevaddrcache = new LoRaDevAddrCache(cache, null);
+            foreach (var device in deviceIds)
+            {
+                loradevaddrcache.StoreInfo(device, cacheKey: device.DevAddr);
+            }
         }
 
         [Fact]
-        public async void DeviceGetter_OTAA_Join()
+        public async void When_DevAddr_Is_Not_In_Cache_Query_Iot_Hub_And_Save_In_Cache()
         {
             string gatewayId = NewUniqueEUI64();
 
-            string[] managerInput = new string[5]
+            using (LockDevAddrHelper lockManager = new LockDevAddrHelper())
             {
-                NewUniqueEUI64(),
-                NewUniqueEUI64(),
-                NewUniqueEUI64(),
-                NewUniqueEUI64(),
-                NewUniqueEUI64()
-            };
+                await lockManager.TakeLocksAsync(this.cache, new string[2] { FullUpdateKey, DeltaUpdateKey });
+                List<DevAddrCacheInfo> managerInput = new List<DevAddrCacheInfo>();
 
-            var devAddr = NewUniqueEUI32();
-            var deviceGetter = new DeviceGetter(this.InitRegistryManager(managerInput), this.cache);
-            var items = await deviceGetter.GetDeviceList(null, gatewayId, "ABCD", devAddr);
-            Assert.Single(items);
+                for (int i = 0; i < 2; i++)
+                {
+                    managerInput.Add(new DevAddrCacheInfo()
+                    {
+                        DevEUI = NewUniqueEUI64(),
+                        DevAddr = NewUniqueEUI32()
+                    });
+                }
+
+                var devAddrJoining = managerInput[0].DevAddr;
+                var registryManagerMock = this.InitRegistryManager(managerInput);
+                var deviceGetter = new DeviceGetter(registryManagerMock.Object, this.cache);
+                var items = await deviceGetter.GetDeviceList(null, gatewayId, "ABCD", devAddrJoining);
+                Assert.Single(items);
+                // If a cache miss it should save it in the redisCache
+                var devAddrcache = new LoRaDevAddrCache(this.cache, null);
+                var queryResult = this.cache.TryGetHashObject(string.Concat(CacheKeyPrefix, devAddrJoining));
+                Assert.Single(queryResult);
+                var resultObject = JsonConvert.DeserializeObject<DevAddrCacheInfo>(queryResult[0].Value);
+                Assert.Equal(managerInput[0].DevAddr, resultObject.DevAddr);
+                Assert.Equal(managerInput[0].GatewayId, resultObject.GatewayId);
+                Assert.Equal(managerInput[0].DevEUI, resultObject.DevEUI);
+            }
+        }
+
+        [Fact]
+        public async void When_DevAddr_Is_In_Cache_Should_Not_Query_Iot_Hub()
+        {
+            string gatewayId = NewUniqueEUI64();
+
+            using (LockDevAddrHelper lockManager = new LockDevAddrHelper())
+            {
+                await lockManager.TakeLocksAsync(this.cache, new string[2] { FullUpdateKey, DeltaUpdateKey });
+                List<DevAddrCacheInfo> managerInput = new List<DevAddrCacheInfo>();
+                for (int i = 0; i < 2; i++)
+                {
+                    managerInput.Add(new DevAddrCacheInfo()
+                    {
+                        DevEUI = NewUniqueEUI64(),
+                        DevAddr = NewUniqueEUI32(),
+                        GatewayId = gatewayId
+                    });
+                }
+
+                var devAddrJoining = managerInput[0].DevAddr;
+                this.InitCache(this.cache, managerInput);
+                var registryManagerMock = this.InitRegistryManager(managerInput);
+
+                var deviceGetter = new DeviceGetter(registryManagerMock.Object, this.cache);
+                var items = await deviceGetter.GetDeviceList(null, gatewayId, "ABCD", devAddrJoining);
+                Assert.Single(items);
+                // Iot hub should never have been called.
+                registryManagerMock.Verify(x => x.CreateQuery(It.IsAny<string>()), Times.Never, "IoT Hub should not have been called, as the device was present in the cache.");
+                registryManagerMock.Verify(x => x.GetTwinAsync(It.IsAny<string>()), Times.Never, "IoT Hub should not have been called, as the device was present in the cache.");
+            }
         }
     }
 }
