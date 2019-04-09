@@ -37,6 +37,7 @@ namespace LoRaWan.Test.Shared
                 var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
                 if (container == null)
                 {
+                    System.Console.WriteLine("No Container detected");
                     // Download image
                     await client.Images.CreateImageAsync(new ImagesCreateParameters() { FromImage = ImageName, Tag = ImageTag }, new AuthConfig(), new Progress<JSONMessage>());
 
@@ -57,6 +58,7 @@ namespace LoRaWan.Test.Shared
                         }
                     };
 
+                    System.Console.WriteLine("Creating container...");
                     // Create the container
                     var response = await client.Containers.CreateContainerAsync(new CreateContainerParameters(config)
                     {
