@@ -16,6 +16,6 @@ namespace LoraKeysManagerFacade
             return this.GatewayId == oldElement.GatewayId
                 && this.DevAddr == oldElement.DevAddr
                 && this.DevEUI == oldElement.DevEUI;
-                }
+        }
     }
 }

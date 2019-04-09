@@ -29,6 +29,7 @@ namespace LoraKeysManagerFacade.Test
 
         private RegistryManager InitRegistryManager(string[] deviceIds)
         {
+            List<Device> currentDevices = new List<Device>();
             var mockRegistryManager = new Mock<RegistryManager>(MockBehavior.Strict);
             var primaryKey = Convert.ToBase64String(Encoding.UTF8.GetBytes(PrimaryKey));
             mockRegistryManager
@@ -42,8 +43,9 @@ namespace LoraKeysManagerFacade.Test
             int numberOfDevices = deviceIds.Length;
             int deviceCount = 0;
 
-            var queryMock = new Mock<IQuery>(MockBehavior.Loose);
-            queryMock
+            // CacheMiss query
+            var cacheMissQueryMock = new Mock<IQuery>(MockBehavior.Loose);
+            cacheMissQueryMock
                 .Setup(x => x.HasMoreResults)
                 .Returns(() => (deviceCount < numberOfDevices));
 
@@ -55,13 +57,17 @@ namespace LoraKeysManagerFacade.Test
                 }
             }
 
-            queryMock
+            cacheMissQueryMock
                 .Setup(x => x.GetNextAsTwinAsync())
                 .ReturnsAsync(Twins());
 
             mockRegistryManager
-                .Setup(x => x.CreateQuery(It.IsAny<string>(), 100))
-                .Returns(queryMock.Object);
+                .Setup(x => x.CreateQuery(It.Is<string>(z => z.Contains("SELECT * FROM devices WHERE properties.desired.DevAddr =")), 100))
+                .Returns((string query, int pageSize) =>
+                {
+                    var devAddr = query.Split('\'')[1];
+                    return cacheMissQueryMock.Object;
+                });
 
             return mockRegistryManager.Object;
         }
@@ -80,8 +86,9 @@ namespace LoraKeysManagerFacade.Test
                 NewUniqueEUI64()
             };
 
+            var devAddr = NewUniqueEUI32();
             var deviceGetter = new DeviceGetter(this.InitRegistryManager(managerInput), this.cache);
-            var items = await deviceGetter.GetDeviceList(null, gatewayId, "ABCD", null);
+            var items = await deviceGetter.GetDeviceList(null, gatewayId, "ABCD", devAddr);
             Assert.Single(items);
         }
     }

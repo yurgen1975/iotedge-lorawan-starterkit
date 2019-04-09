@@ -17,7 +17,7 @@ namespace LoRaWan.Test.Shared
     {
         private const string ContainerName = "redis";
         private const string ImageName = "redis";
-        private const string ImageTag = "5.0.4";
+        private const string ImageTag = "5.0.4-alpine";
         static string containerId;
 
         public RedisContainerFixture()
@@ -27,12 +27,14 @@ namespace LoRaWan.Test.Shared
 
         private async Task StartRedisContainer()
         {
+            var dockerConnection = System.Environment.OSVersion.Platform.ToString().Contains("Win") ?
+                "npipe://./pipe/docker_engine" :
+                "unix:///var/run/docker.sock";
             System.Console.WriteLine("Starting container");
-            using (var conf = new DockerClientConfiguration(new Uri("unix:///var/run/docker.sock"))) // localhost
+            using (var conf = new DockerClientConfiguration(new Uri(dockerConnection))) // localhost
             using (var client = conf.CreateClient())
             {
                 System.Console.WriteLine("Starting container...");
-
                 var containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
                 var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
                 if (container == null)
@@ -74,9 +76,13 @@ namespace LoRaWan.Test.Shared
                     container = containers.First(c => c.ID == response.ID);
                 }
 
+                System.Console.WriteLine("Container created");
+
                 // Start the container is needed
                 if (container.State != "running")
                 {
+                    System.Console.WriteLine("Starting container");
+
                     var started = await client.Containers.StartContainerAsync(container.ID, new ContainerStartParameters());
                     if (!started)
                     {
