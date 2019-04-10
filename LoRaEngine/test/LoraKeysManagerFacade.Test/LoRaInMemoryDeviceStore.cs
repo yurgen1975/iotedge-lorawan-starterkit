@@ -135,17 +135,7 @@ namespace LoraKeysManagerFacade.Test
             return this.cache.ContainsKey(key);
         }
 
-        public bool TrySetHashObject(string key, string subkey, string value)
-        {
-            throw new NotImplementedException();
-        }
-
         public HashEntry[] TryGetHashObject(string key)
-        {
-            throw new NotImplementedException();
-        }
-
-        public void ReplaceHashObjects(string cacheKey, List<DevAddrCacheInfo> list)
         {
             throw new NotImplementedException();
         }
@@ -160,7 +150,7 @@ namespace LoraKeysManagerFacade.Test
             throw new NotImplementedException();
         }
 
-        public void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null)
+        public void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null, bool removeOldOccurence = false)
             where T : class
         {
             throw new NotImplementedException();

@@ -164,7 +164,6 @@ namespace LoraKeysManagerFacade
                     int resultCount = 0;
                     while (query.HasMoreResults)
                     {
-                        resultCount++;
                         var page = await query.GetNextAsTwinAsync();
 
                         foreach (var twin in page)
@@ -184,6 +183,8 @@ namespace LoraKeysManagerFacade
                                 results.Add(iotHubDeviceInfo);
                                 devAddrCache.StoreInfo((DevAddrCacheInfo)iotHubDeviceInfo);
                             }
+
+                            resultCount++;
                         }
                     }
 
@@ -192,7 +193,8 @@ namespace LoraKeysManagerFacade
                         {
                         devAddrCache.StoreInfo(new DevAddrCacheInfo()
                         {
-                            DevAddr = devAddr
+                            DevAddr = devAddr,
+                            DevEUI = string.Empty
                         });
                     }
                 }

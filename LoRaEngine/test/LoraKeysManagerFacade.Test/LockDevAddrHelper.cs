@@ -21,11 +21,22 @@ namespace LoraKeysManagerFacade.Test
             }
         }
 
+        public void ReleaseLocks(ILoRaDeviceCacheStore loRaDeviceCache, string[] lockNames)
+        {
+            foreach (var locks in lockNames)
+            {
+                loRaDeviceCache.LockRelease(locks, locks);
+            }
+        }
+
         public void Dispose()
         {
-            foreach (var locks in this.lockNames)
+            if (this.lockNames != null)
             {
-                this.loRaDeviceCache.LockRelease(locks, locks);
+                foreach (var locks in this.lockNames)
+                {
+                    this.loRaDeviceCache.LockRelease(locks, locks);
+                }
             }
         }
     }

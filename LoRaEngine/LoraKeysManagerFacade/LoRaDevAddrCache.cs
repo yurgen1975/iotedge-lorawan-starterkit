@@ -182,7 +182,6 @@ namespace LoraKeysManagerFacade
                 {
                     if (twin.DeviceId != null)
                     {
-                        var device = await registryManager.GetDeviceAsync(twin.DeviceId);
                         string currentDevAddr;
                         if (twin.Properties.Desired.Contains("DevAddr"))
                         {
@@ -225,7 +224,7 @@ namespace LoraKeysManagerFacade
                 var devicesByDevEui = this.KeepExistingCacheInformation(currentDevAddrEntry, elementPerDevAddr, canDeleteDeviceWithDevAddr);
                 if (devicesByDevEui != null)
                 {
-                    this.cacheStore.ReplaceHashObjects(cacheKey, devicesByDevEui, DevAddrObjectsTTL);
+                    this.cacheStore.ReplaceHashObjects(cacheKey, devicesByDevEui, DevAddrObjectsTTL, canDeleteDeviceWithDevAddr);
                 }
             }
         }
@@ -233,56 +232,84 @@ namespace LoraKeysManagerFacade
         /// <summary>
         /// Method to make sure we keep information currently available in the cache and we don't perform unnessecary updates.
         /// </summary>
-        private Dictionary<string, DevAddrCacheInfo> KeepExistingCacheInformation(HashEntry[] currentDevEUIEntry, IGrouping<string, DevAddrCacheInfo> newDevEUIList, bool canDeleteExistingDevice)
+        private Dictionary<string, DevAddrCacheInfo> KeepExistingCacheInformation(HashEntry[] cacheDevEUIEntry, IGrouping<string, DevAddrCacheInfo> newDevEUIList, bool canDeleteExistingDevice)
         {
             // if the new value are not different we want to ensure we don't save, to not update the TTL of the item.
             bool areNewValuesDifferent = false;
-            Dictionary<string, DevAddrCacheInfo> returnValues = new Dictionary<string, DevAddrCacheInfo>();
-            var newValues = newDevEUIList.ToDictionary(x => x.DevEUI);
-            var oldValues = new Dictionary<string, DevAddrCacheInfo>();
+            var toSyncValues = newDevEUIList.ToDictionary(x => x.DevEUI);
+            var cacheValues = new Dictionary<string, DevAddrCacheInfo>();
 
-            foreach (var devEUIEntry in currentDevEUIEntry)
+            foreach (var devEUIEntry in cacheDevEUIEntry)
             {
-                oldValues.Add(devEUIEntry.Name, JsonConvert.DeserializeObject<DevAddrCacheInfo>(devEUIEntry.Value));
+                cacheValues.Add(devEUIEntry.Name, JsonConvert.DeserializeObject<DevAddrCacheInfo>(devEUIEntry.Value));
+            }
+
+            // If nothing is in the cache we want to return the new values.
+            if (cacheValues.Count == 0)
+            {
+                return toSyncValues;
             }
 
             // if we can delete existing devices in the devadr cache, we take the new list as base, otherwise we take the old one.
             if (canDeleteExistingDevice)
             {
-                return this.MergeOldAndNewChanges(ref areNewValuesDifferent, newValues, oldValues, false);
+                return this.MergeOldAndNewChanges(ref areNewValuesDifferent, toSyncValues, cacheValues, canDeleteExistingDevice);
             }
             else
             {
-                return this.MergeOldAndNewChanges(ref areNewValuesDifferent, oldValues, newValues, true);
+                return this.MergeOldAndNewChanges(ref areNewValuesDifferent, cacheValues, toSyncValues, canDeleteExistingDevice);
             }
         }
 
-        private Dictionary<string, DevAddrCacheInfo> MergeOldAndNewChanges(ref bool areNewValuesDifferent, Dictionary<string, DevAddrCacheInfo> valueArrayResult, Dictionary<string, DevAddrCacheInfo> valueArrayimport, bool saveGateway)
+        // In the end we simply need to update the gateway and the Primary key. The DEVEUI and DevAddr can't be updated.
+        private Dictionary<string, DevAddrCacheInfo> MergeOldAndNewChanges(ref bool isSaveRequired, Dictionary<string, DevAddrCacheInfo> valueArrayBase, Dictionary<string, DevAddrCacheInfo> valueArrayimport, bool shouldImportFromNewValues)
         {
-            foreach (var resultValue in valueArrayResult)
+            foreach (var baseValue in valueArrayBase)
             {
-                if (valueArrayimport.ContainsKey(resultValue.Key))
+                if (valueArrayimport.ContainsKey(baseValue.Key))
                 {
-                    if (!resultValue.Value.IsEqual(valueArrayimport[resultValue.Key]))
+                    if (!baseValue.Value.IsEqual(valueArrayimport[baseValue.Key]))
                     {
-                        // the item is different we need to save it
-                        areNewValuesDifferent = true;
+                        // the item is different we need to trigger a save of the object
+                        isSaveRequired = true;
                     }
 
-                    resultValue.Value.PrimaryKey = valueArrayimport[resultValue.Key].PrimaryKey;
-                    if (saveGateway)
+                    if (shouldImportFromNewValues)
                     {
-                        resultValue.Value.GatewayId = valueArrayimport[resultValue.Key].GatewayId;
+                        // In this case (FullUpdate) we are taking new values as base, we only want to keep the primary key if it was not empty.
+                        // In our current update strategy the device key will always be null at this point.
+                        if (!string.IsNullOrEmpty(valueArrayimport[baseValue.Key].PrimaryKey))
+                        {
+                            baseValue.Value.PrimaryKey = valueArrayimport[baseValue.Key].PrimaryKey;
+                        }
                     }
+                    else
+                    {
+                        // In this case (delta update). We are taking old value as base. We want to make sure to update the gateway Id as this is the only parameter that could change.
+                        baseValue.Value.GatewayId = valueArrayimport[baseValue.Key].GatewayId;
+                    }
+
+                    // I remove the key from the import
+                    valueArrayimport.Remove(baseValue.Key);
                 }
                 else
                 {
                     // there is an additional item, we need to save
-                    areNewValuesDifferent = true;
+                    isSaveRequired = true;
                 }
             }
 
-            return areNewValuesDifferent ? valueArrayResult : null;
+            if (!shouldImportFromNewValues)
+            {
+                // In this case we want to make sure we import any new value that were not contained in the old cache information
+                foreach (var remainingElementToImport in valueArrayimport)
+                {
+                    valueArrayBase.Add(remainingElementToImport.Value.DevEUI, remainingElementToImport.Value);
+                }
+            }
+
+            // If no changes are required we return null to avoid saving and updating the expiry on the cache.
+            return isSaveRequired ? valueArrayBase : null;
         }
     }
     }

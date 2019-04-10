@@ -118,9 +118,14 @@ namespace LoraKeysManagerFacade
             return this.redisCache.HashGetAll(key);
         }
 
-        public void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null)
+        public void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null, bool removeOldOccurence = false)
             where T : class
         {
+            if (removeOldOccurence)
+            {
+                this.redisCache.KeyDelete(cacheKey);
+            }
+
             HashEntry[] hashEntries = new HashEntry[input.Count];
             int i = 0;
             foreach (var element in input)

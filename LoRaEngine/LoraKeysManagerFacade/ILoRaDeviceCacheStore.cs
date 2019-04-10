@@ -42,7 +42,7 @@ namespace LoraKeysManagerFacade
 
         HashEntry[] TryGetHashObject(string key);
 
-        void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null)
+        void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null, bool removeOldOccurence = false)
             where T : class;
 
         void ChangeLockTTL(string key, TimeSpan timeToExpire);
