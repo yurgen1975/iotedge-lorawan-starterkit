@@ -10,6 +10,7 @@ namespace LoraKeysManagerFacade
     using Microsoft.Azure.Devices;
     using Microsoft.Azure.WebJobs;
     using Microsoft.Extensions.Logging;
+    using Microsoft.Extensions.Logging.Abstractions;
     using Newtonsoft.Json;
     using StackExchange.Redis;
 
@@ -46,7 +47,7 @@ namespace LoraKeysManagerFacade
             this.gatewayId = gatewayId;
             this.cacheKey = GenerateKey(devAddr);
             this.devAddr = devAddr;
-            this.logger = logger;
+            this.logger = logger ?? NullLogger.Instance;
 
             // perform the necessary syncs
             _ = this.PerformNeededSyncs(registryManager);
@@ -59,7 +60,7 @@ namespace LoraKeysManagerFacade
         public LoRaDevAddrCache(ILoRaDeviceCacheStore cacheStore, ILogger logger)
         {
             this.cacheStore = cacheStore;
-            this.logger = logger;
+            this.logger = logger ?? NullLogger.Instance;
         }
 
         public bool HasValue()
@@ -71,7 +72,7 @@ namespace LoraKeysManagerFacade
         {
             info = new List<DevAddrCacheInfo>();
 
-            var tmp = this.cacheStore.TryGetHashObject(this.cacheKey);
+            var tmp = this.cacheStore.GetHashObject(this.cacheKey);
             if (tmp?.Length > 0)
             {
                 foreach (var tm in tmp)
@@ -83,40 +84,53 @@ namespace LoraKeysManagerFacade
             return info.Count > 0;
         }
 
-        // change
         public bool StoreInfo(DevAddrCacheInfo info, bool initialize = false, string cacheKey = "")
         {
+            bool success = false;
             this.devEUI = info.DevEUI;
+            var hashValue = JsonConvert.SerializeObject(info);
             if (string.IsNullOrEmpty(cacheKey))
             {
-                return this.cacheStore.TrySetHashObject(this.cacheKey, info.DevEUI, JsonConvert.SerializeObject(info));
+                success = this.cacheStore.TrySetHashObject(this.cacheKey, info.DevEUI, hashValue);
             }
 
-            return this.cacheStore.TrySetHashObject(GenerateKey(cacheKey), info.DevEUI, JsonConvert.SerializeObject(info));
+            success = this.cacheStore.TrySetHashObject(GenerateKey(cacheKey), info.DevEUI, hashValue);
+
+            if (success)
+            {
+                this.logger.LogInformation($"Successfully saved dev address info on dictionary key: {this.cacheKey}, hashkey: {info.DevEUI}, object: {hashValue}");
+            }
+            else
+            {
+               this.logger.LogError($"failure to save dev address info on dictionary key: {this.cacheKey}, hashkey: {info?.DevEUI}, object: {hashValue}");
+            }
+
+            return success;
         }
 
         internal async Task PerformNeededSyncs(RegistryManager registryManager)
         {
-            if (await this.cacheStore.LockTakeAsync(FullUpdateKey, FullUpdateKey, FullUpdateKeyTimeSpan))
+            // If a full update is expected
+            if (await this.cacheStore.LockTakeAsync(FullUpdateKey, FullUpdateKey, FullUpdateKeyTimeSpan, block: false))
             {
                 var ownGlobalLock = false;
                 try
                 {
                     // if a full update is needed I take the global lock and perform a full reload
-                    if (!await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKeyTimeSpan, true))
+                    if (!await this.cacheStore.LockTakeAsync(GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKey, GlobalDevAddrUpdateKeyTimeSpan, block: true))
                     {
-                        // should that really be a exception, this is somehow expected?
-                        throw new Exception("Failed to lock the global dev addr update key");
+                        this.logger.LogDebug("A full reload was needed but failed to acquire global update lock");
                     }
 
                     ownGlobalLock = true;
                     await this.PerformFullReload(registryManager);
                     // if successfull i set the delta lock to 5 minutes and release the global lock
-                    this.cacheStore.StringSet(FullUpdateKey, DateTime.UtcNow.ToString(), FullUpdateKeyTimeSpan);
+                    this.cacheStore.StringSet(FullUpdateKey, FullUpdateKey, FullUpdateKeyTimeSpan);
                     this.cacheStore.StringSet(DeltaUpdateKey, DeltaUpdateKey, DeltaUpdateKeyTimeSpan);
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    this.logger.LogError($"Exception occured during dev addresses full reload {ex.ToString()}");
                     // there was a problem, to deal with iot hub throttling we add some time.
                     this.cacheStore.ChangeLockTTL(FullUpdateKey, timeToExpire: TimeSpan.FromMinutes(1)); // on 24
                 }
@@ -137,8 +151,9 @@ namespace LoraKeysManagerFacade
                         await this.PerformDeltaReload(registryManager);
                     }
                 }
-                catch (Exception)
+                catch (Exception ex)
                 {
+                    this.logger.LogError($"Exception occured during dev addresses delta reload {ex.ToString()}");
                 }
                 finally
                 {
@@ -220,7 +235,7 @@ namespace LoraKeysManagerFacade
             foreach (var elementPerDevAddr in regrouping)
             {
                 var cacheKey = GenerateKey(elementPerDevAddr.Key);
-                var currentDevAddrEntry = this.cacheStore.TryGetHashObject(cacheKey);
+                var currentDevAddrEntry = this.cacheStore.GetHashObject(cacheKey);
                 var devicesByDevEui = this.KeepExistingCacheInformation(currentDevAddrEntry, elementPerDevAddr, canDeleteDeviceWithDevAddr);
                 if (devicesByDevEui != null)
                 {

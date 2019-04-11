@@ -29,7 +29,7 @@ namespace LoraKeysManagerFacade.Test
         public void TestHashAreSavedCorrectly(string key, string subkey, string value)
         {
             this.cache.TrySetHashObject(key, subkey, value);
-            var keys = this.cache.TryGetHashObject(key);
+            var keys = this.cache.GetHashObject(key);
             Assert.Single(keys);
             Assert.Equal(subkey, keys[0].Name);
             Assert.Equal(value, keys[0].Value);

@@ -135,7 +135,7 @@ namespace LoraKeysManagerFacade.Test
             return this.cache.ContainsKey(key);
         }
 
-        public HashEntry[] TryGetHashObject(string key)
+        public HashEntry[] GetHashObject(string key)
         {
             throw new NotImplementedException();
         }

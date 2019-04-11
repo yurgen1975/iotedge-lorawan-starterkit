@@ -113,7 +113,7 @@ namespace LoraKeysManagerFacade
             return returnValue;
         }
 
-        public HashEntry[] TryGetHashObject(string key)
+        public HashEntry[] GetHashObject(string key)
         {
             return this.redisCache.HashGetAll(key);
         }

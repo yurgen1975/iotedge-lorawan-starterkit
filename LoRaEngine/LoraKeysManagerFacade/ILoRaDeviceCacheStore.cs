@@ -40,7 +40,7 @@ namespace LoraKeysManagerFacade
 
         bool TrySetHashObject(string key, string subkey, string value, TimeSpan? timeToExpire = null);
 
-        HashEntry[] TryGetHashObject(string key);
+        HashEntry[] GetHashObject(string key);
 
         void ReplaceHashObjects<T>(string cacheKey, Dictionary<string, T> input, TimeSpan? timeToExpire = null, bool removeOldOccurence = false)
             where T : class;

@@ -37,48 +37,53 @@ namespace LoRaWan.Test.Shared
                 System.Console.WriteLine("Starting container...");
                 var containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
                 var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
-                if (container == null)
+
+                if (container != null)
                 {
-                    System.Console.WriteLine("No Container detected");
-                    // Download image
-                    await client.Images.CreateImageAsync(new ImagesCreateParameters() { FromImage = ImageName, Tag = ImageTag }, new AuthConfig(), new Progress<JSONMessage>());
+                    System.Console.WriteLine("Removing current container...");
 
-                    // Create the container
-                    var config = new Config()
+                    // remove current container running
+                    await client.Containers.RemoveContainerAsync(container.ID, new ContainerRemoveParameters()
                     {
-                        Hostname = "localhost"
-                    };
+                        Force = true
+                    });
+                }
 
-                    // Configure the ports to expose
-                    var hostConfig = new HostConfig()
-                    {
-                        PortBindings = new Dictionary<string, IList<PortBinding>>
+                System.Console.WriteLine("No Container detected");
+                // Download image
+                await client.Images.CreateImageAsync(new ImagesCreateParameters() { FromImage = ImageName, Tag = ImageTag }, new AuthConfig(), new Progress<JSONMessage>());
+
+                // Create the container
+                var config = new Config()
+                {
+                    Hostname = "localhost"
+                };
+
+                // Configure the ports to expose
+                var hostConfig = new HostConfig()
+                {
+                    PortBindings = new Dictionary<string, IList<PortBinding>>
                         {
                             {
                                 "6379/tcp", new List<PortBinding> { new PortBinding { HostIP = "127.0.0.1", HostPort = "6379" } }
                             }
                         }
-                    };
+                };
 
-                    System.Console.WriteLine("Creating container...");
-                    // Create the container
-                    var response = await client.Containers.CreateContainerAsync(new CreateContainerParameters(config)
-                    {
-                        Image = ImageName + ":" + ImageTag,
-                        Name = ContainerName,
-                        Tty = false,
-                        HostConfig = hostConfig,
-                    });
-                    containerId = response.ID;
-
-                    // Get the container object
-                    containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
-                    container = containers.First(c => c.ID == response.ID);
-                }
-                else
+                System.Console.WriteLine("Creating container...");
+                // Create the container
+                var response = await client.Containers.CreateContainerAsync(new CreateContainerParameters(config)
                 {
-                    containerId = container.ID;
-                }
+                    Image = ImageName + ":" + ImageTag,
+                    Name = ContainerName,
+                    Tty = false,
+                    HostConfig = hostConfig,
+                });
+                containerId = response.ID;
+
+                // Get the container object
+                containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
+                container = containers.First(c => c.ID == response.ID);
 
                 System.Console.WriteLine("Container created");
 
