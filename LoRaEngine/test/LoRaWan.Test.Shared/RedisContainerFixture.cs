@@ -22,16 +22,7 @@ namespace LoRaWan.Test.Shared
 
         public RedisContainerFixture()
         {
-            if (!Environment.GetEnvironmentVariable("Environment.MachineName").Contains("TASKAGENT"))
-            {
-                // we are running on premise
-                System.Console.WriteLine("Running on premise");
                 this.StartRedisContainer().Wait();
-            }
-            else
-            {
-                System.Console.WriteLine("Running on ADO");
-            }
         }
 
         private async Task StartRedisContainer()
