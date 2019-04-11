@@ -22,7 +22,7 @@ namespace LoRaWan.Test.Shared
 
         public RedisContainerFixture()
         {
-            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Agent.Id")))
+            if (!Environment.GetEnvironmentVariable("Environment.MachineName").Contains("TASKAGENT"))
             {
                 // we are running on premise
                 System.Console.WriteLine("Running on premise");
