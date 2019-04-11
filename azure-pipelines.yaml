@@ -69,6 +69,10 @@ jobs:
   - script: dotnet build --configuration $(buildConfiguration) ./LoRaEngine/modules/LoRaSimulator/LoRaSimulator.sln
     displayName: Build LoRa Simulator
 
+ # Reset Redis Cache
+  - script: docker run -p 6379:6379 -d redis:5.0.4-alpine  
+    displayName: Starting local Redis Cache
+
   # Run unit tests
   - script: |
       mkdir $(Build.SourcesDirectory)\results

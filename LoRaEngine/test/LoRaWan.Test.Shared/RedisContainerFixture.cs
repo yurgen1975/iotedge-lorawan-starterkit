@@ -22,7 +22,16 @@ namespace LoRaWan.Test.Shared
 
         public RedisContainerFixture()
         {
-            this.StartRedisContainer().Wait();
+            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Agent.Id")))
+            {
+                // we are running on premise
+                System.Console.WriteLine("Running on premise");
+                this.StartRedisContainer().Wait();
+            }
+            else
+            {
+                System.Console.WriteLine("Running on ADO");
+            }
         }
 
         private async Task StartRedisContainer()
