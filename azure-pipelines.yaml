@@ -70,8 +70,8 @@ jobs:
     displayName: Build LoRa Simulator
 
  # Reset Redis Cache
-  - script: docker pull redis:5.0.4-alpine  
-    displayName: Pulling local Redis Cache
+  - script: docker run -p 6379:6379 -d redis:5.0.4-alpine  
+    displayName: Starting local Redis Cache
 
   # Run unit tests
   - script: |
