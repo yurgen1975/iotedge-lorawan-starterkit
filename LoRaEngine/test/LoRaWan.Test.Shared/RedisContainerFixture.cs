@@ -36,7 +36,7 @@ namespace LoRaWan.Test.Shared
                 using (var conf = new DockerClientConfiguration(new Uri(dockerConnection))) // localhost
                 using (var client = conf.CreateClient())
                 {
-                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Agent.Id")))
+                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SYSTEM_DEFINITIONID")))
                     {
                         System.Console.WriteLine("On Premise execution detected");
                         System.Console.WriteLine("Starting container...");
