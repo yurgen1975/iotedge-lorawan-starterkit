@@ -27,77 +27,85 @@ namespace LoRaWan.Test.Shared
 
         private async Task StartRedisContainer()
         {
-            var dockerConnection = System.Environment.OSVersion.Platform.ToString().Contains("Win") ?
-                "npipe://./pipe/docker_engine" :
-                "unix:///var/run/docker.sock";
-            System.Console.WriteLine("Starting container");
-            using (var conf = new DockerClientConfiguration(new Uri(dockerConnection))) // localhost
-            using (var client = conf.CreateClient())
+            try
             {
-                System.Console.WriteLine("Starting container...");
-                var containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
-                var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
-
-                if (container != null)
+                var dockerConnection = System.Environment.OSVersion.Platform.ToString().Contains("Win") ?
+                    "npipe://./pipe/docker_engine" :
+                    "unix:///var/run/docker.sock";
+                System.Console.WriteLine("Starting container");
+                using (var conf = new DockerClientConfiguration(new Uri(dockerConnection))) // localhost
+                using (var client = conf.CreateClient())
                 {
-                    System.Console.WriteLine("Removing current container...");
-
-                    // remove current container running
-                    await client.Containers.RemoveContainerAsync(container.ID, new ContainerRemoveParameters()
+                    System.Console.WriteLine("Starting container...");
+                    var containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
+                    System.Console.WriteLine("listing container...");
+                    var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
+                    System.Console.WriteLine("Getting first container...");
+                    if (container != null)
                     {
-                        Force = true
-                    });
-                }
+                        System.Console.WriteLine("Removing current container...");
 
-                System.Console.WriteLine("No Container detected");
-                // Download image
-                await client.Images.CreateImageAsync(new ImagesCreateParameters() { FromImage = ImageName, Tag = ImageTag }, new AuthConfig(), new Progress<JSONMessage>());
+                        // remove current container running
+                        await client.Containers.RemoveContainerAsync(container.ID, new ContainerRemoveParameters()
+                        {
+                            Force = true
+                        });
+                    }
 
-                // Create the container
-                var config = new Config()
-                {
-                    Hostname = "localhost"
-                };
+                    System.Console.WriteLine("No Container detected");
+                    // Download image
+                    await client.Images.CreateImageAsync(new ImagesCreateParameters() { FromImage = ImageName, Tag = ImageTag }, new AuthConfig(), new Progress<JSONMessage>());
 
-                // Configure the ports to expose
-                var hostConfig = new HostConfig()
-                {
-                    PortBindings = new Dictionary<string, IList<PortBinding>>
+                    // Create the container
+                    var config = new Config()
+                    {
+                        Hostname = "localhost"
+                    };
+
+                    // Configure the ports to expose
+                    var hostConfig = new HostConfig()
+                    {
+                        PortBindings = new Dictionary<string, IList<PortBinding>>
                         {
                             {
                                 "6379/tcp", new List<PortBinding> { new PortBinding { HostIP = "127.0.0.1", HostPort = "6379" } }
                             }
                         }
-                };
+                    };
 
-                System.Console.WriteLine("Creating container...");
-                // Create the container
-                var response = await client.Containers.CreateContainerAsync(new CreateContainerParameters(config)
-                {
-                    Image = ImageName + ":" + ImageTag,
-                    Name = ContainerName,
-                    Tty = false,
-                    HostConfig = hostConfig,
-                });
-                containerId = response.ID;
-
-                // Get the container object
-                containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
-                container = containers.First(c => c.ID == response.ID);
-
-                System.Console.WriteLine("Container created");
-
-                // Start the container is needed
-                if (container.State != "running")
-                {
-                    System.Console.WriteLine("Starting container");
-
-                    var started = await client.Containers.StartContainerAsync(container.ID, new ContainerStartParameters());
-                    if (!started)
+                    System.Console.WriteLine("Creating container...");
+                    // Create the container
+                    var response = await client.Containers.CreateContainerAsync(new CreateContainerParameters(config)
                     {
-                        Assert.False(true, "Cannot start the docker container");
+                        Image = ImageName + ":" + ImageTag,
+                        Name = ContainerName,
+                        Tty = false,
+                        HostConfig = hostConfig,
+                    });
+                    containerId = response.ID;
+
+                    // Get the container object
+                    containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
+                    container = containers.First(c => c.ID == response.ID);
+
+                    System.Console.WriteLine("Container created");
+
+                    // Start the container is needed
+                    if (container.State != "running")
+                    {
+                        System.Console.WriteLine("Starting container");
+
+                        var started = await client.Containers.StartContainerAsync(container.ID, new ContainerStartParameters());
+                        if (!started)
+                        {
+                            Assert.False(true, "Cannot start the docker container");
+                        }
                     }
                 }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine(ex.ToString());
             }
         }
 

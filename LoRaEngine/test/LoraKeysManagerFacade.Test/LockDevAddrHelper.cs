@@ -8,20 +8,34 @@ namespace LoraKeysManagerFacade.Test
 
     static class LockDevAddrHelper
     {
+        private const string GlobalDevAddrUpdateKey = "globalUpdateKey";
+
         public static async Task TakeLocksAsync(ILoRaDeviceCacheStore loRaDeviceCache, string[] lockNames)
         {
-            foreach (var locks in lockNames)
+            if (lockNames?.Length > 0)
             {
-                await loRaDeviceCache.LockTakeAsync(locks, locks, TimeSpan.FromMinutes(3));
+                foreach (var locks in lockNames)
+                {
+                    await loRaDeviceCache.LockTakeAsync(locks, locks, TimeSpan.FromMinutes(3));
+                }
             }
         }
 
         public static void ReleaseLocks(ILoRaDeviceCacheStore loRaDeviceCache, string[] lockNames)
         {
-            foreach (var locks in lockNames)
+            if (lockNames?.Length > 0)
             {
-                loRaDeviceCache.LockRelease(locks, locks);
+                foreach (var locks in lockNames)
+                {
+                    loRaDeviceCache.LockRelease(locks, locks);
+                }
             }
+        }
+
+        public static async Task PrepareLocksForTests(ILoRaDeviceCacheStore loRaDeviceCache, string[] neededLocksForTestToRun, string[] locksGuideTest)
+        {
+            LockDevAddrHelper.ReleaseLocks(loRaDeviceCache, neededLocksForTestToRun);
+            await LockDevAddrHelper.TakeLocksAsync(loRaDeviceCache, locksGuideTest);
         }
     }
 }

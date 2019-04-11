@@ -68,6 +68,11 @@ namespace LoraKeysManagerFacade
             return this.cacheStore.StringGet(this.cacheKey) != null;
         }
 
+        public bool KeyExists(string key)
+        {
+            return this.cacheStore.StringGet(key) != null;
+        }
+
         public bool TryGetInfo(out List<DevAddrCacheInfo> info)
         {
             info = new List<DevAddrCacheInfo>();
