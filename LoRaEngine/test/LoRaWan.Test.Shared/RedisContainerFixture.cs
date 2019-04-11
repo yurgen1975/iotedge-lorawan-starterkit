@@ -22,7 +22,7 @@ namespace LoRaWan.Test.Shared
 
         public RedisContainerFixture()
         {
-                this.StartRedisContainer().Wait();
+            this.StartRedisContainer().Wait();
         }
 
         private async Task StartRedisContainer()
@@ -36,25 +36,29 @@ namespace LoRaWan.Test.Shared
                 using (var conf = new DockerClientConfiguration(new Uri(dockerConnection))) // localhost
                 using (var client = conf.CreateClient())
                 {
-                    System.Console.WriteLine("Starting container...");
-                    var containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
-                    System.Console.WriteLine("listing container...");
-                    var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
-                    System.Console.WriteLine("Getting first container...");
-                    if (container != null)
+                    if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("Agent.Id")))
                     {
-                        System.Console.WriteLine("Removing current container...");
-
-                        // remove current container running
-                        await client.Containers.RemoveContainerAsync(container.ID, new ContainerRemoveParameters()
+                        System.Console.WriteLine("On Premise execution detected");
+                        System.Console.WriteLine("Starting container...");
+                        var containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
+                        System.Console.WriteLine("listing container...");
+                        var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
+                        System.Console.WriteLine("Getting first container...");
+                        if (container != null)
                         {
-                            Force = true
-                        });
-                    }
+                            System.Console.WriteLine("Removing current container...");
 
-                    System.Console.WriteLine("No Container detected");
-                    // Download image
-                    await client.Images.CreateImageAsync(new ImagesCreateParameters() { FromImage = ImageName, Tag = ImageTag }, new AuthConfig(), new Progress<JSONMessage>());
+                            // remove current container running
+                            await client.Containers.RemoveContainerAsync(container.ID, new ContainerRemoveParameters()
+                            {
+                                Force = true
+                            });
+                        }
+
+                        System.Console.WriteLine("No Container detected");
+                        // Download image
+                        await client.Images.CreateImageAsync(new ImagesCreateParameters() { FromImage = ImageName, Tag = ImageTag }, new AuthConfig(), new Progress<JSONMessage>());
+                    }
 
                     // Create the container
                     var config = new Config()
@@ -80,26 +84,14 @@ namespace LoRaWan.Test.Shared
                         Image = ImageName + ":" + ImageTag,
                         Name = ContainerName,
                         Tty = false,
-                        HostConfig = hostConfig,
+                        HostConfig = hostConfig
                     });
                     containerId = response.ID;
 
-                    // Get the container object
-                    containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
-                    container = containers.First(c => c.ID == response.ID);
-
-                    System.Console.WriteLine("Container created");
-
-                    // Start the container is needed
-                    if (container.State != "running")
+                    var started = await client.Containers.StartContainerAsync(containerId, new ContainerStartParameters());
+                    if (!started)
                     {
-                        System.Console.WriteLine("Starting container");
-
-                        var started = await client.Containers.StartContainerAsync(container.ID, new ContainerStartParameters());
-                        if (!started)
-                        {
                             Assert.False(true, "Cannot start the docker container");
-                        }
                     }
                 }
             }
@@ -109,31 +101,12 @@ namespace LoRaWan.Test.Shared
             }
         }
 
-        [Fact]
-        public async Task EnsureRedisIsRunning()
-        {
-            using (var httpClient = new HttpClient())
-            {
-                while (true)
-                {
-                    try
-                    {
-                        using (var response = await httpClient.GetAsync("http://localhost:8080"))
-                        {
-                            if (response.IsSuccessStatusCode)
-                                break;
-                        }
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
-        }
-
         public void Dispose()
         {
-            using (var conf = new DockerClientConfiguration(new Uri("npipe://./pipe/docker_engine"))) // localhost
+            var dockerConnection = System.Environment.OSVersion.Platform.ToString().Contains("Win") ?
+                "npipe://./pipe/docker_engine" :
+                "unix:///var/run/docker.sock";
+            using (var conf = new DockerClientConfiguration(new Uri(dockerConnection))) // localhost
             using (var client = conf.CreateClient())
             {
                 client.Containers.RemoveContainerAsync(containerId, new ContainerRemoveParameters()
