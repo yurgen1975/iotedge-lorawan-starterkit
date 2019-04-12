@@ -25,6 +25,7 @@ namespace LoraKeysManagerFacade.Test
         private const string CacheKeyPrefix = "devAddrTable:";
 
         private const string PrimaryKey = "ABCDEFGH1234567890";
+
         private readonly ILoRaDeviceCacheStore cache;
 
         public DevAddrCacheTest(RedisFixture redis)

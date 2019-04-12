@@ -6,6 +6,7 @@ namespace LoraKeysManagerFacade.Test
     using System;
     using System.Collections.Generic;
     using System.Linq;
+    using System.Threading;
     using System.Threading.Tasks;
     using Docker.DotNet;
     using Docker.DotNet.Models;
@@ -23,7 +24,11 @@ namespace LoraKeysManagerFacade.Test
 
         private ConnectionMultiplexer redis;
 
-        static string containerId;
+        private int redisPort;
+
+        string containerId;
+
+        static int uniqueRedisPort = 6000;
 
         public IDatabase Database { get; set; }
 
@@ -43,19 +48,7 @@ namespace LoraKeysManagerFacade.Test
                     var containers = await client.Containers.ListContainersAsync(new ContainersListParameters() { All = true });
                     System.Console.WriteLine("listing container...");
                     var container = containers.FirstOrDefault(c => c.Names.Contains("/" + ContainerName));
-                    System.Console.WriteLine("Getting first container...");
-                    if (container != null)
-                    {
-                        System.Console.WriteLine("Removing current container...");
 
-                        // remove current container running
-                        await client.Containers.RemoveContainerAsync(container.ID, new ContainerRemoveParameters()
-                        {
-                            Force = true
-                        });
-                    }
-
-                    System.Console.WriteLine("No Container detected");
                     // Download image
                     await client.Images.CreateImageAsync(new ImagesCreateParameters() { FromImage = ImageName, Tag = ImageTag }, new AuthConfig(), new Progress<JSONMessage>());
 
@@ -64,6 +57,7 @@ namespace LoraKeysManagerFacade.Test
                     {
                         Hostname = "localhost"
                     };
+                    this.redisPort = Interlocked.Increment(ref uniqueRedisPort);
 
                     // Configure the ports to expose
                     var hostConfig = new HostConfig()
@@ -71,7 +65,7 @@ namespace LoraKeysManagerFacade.Test
                         PortBindings = new Dictionary<string, IList<PortBinding>>
                         {
                             {
-                                "6379/tcp", new List<PortBinding> { new PortBinding { HostIP = "127.0.0.1", HostPort = "6379" } }
+                                $"6379/tcp", new List<PortBinding> { new PortBinding { HostIP = "127.0.0.1", HostPort = this.redisPort.ToString() } }
                             }
                         }
                     };
@@ -81,15 +75,15 @@ namespace LoraKeysManagerFacade.Test
                     var response = await client.Containers.CreateContainerAsync(new CreateContainerParameters(config)
                     {
                         Image = ImageName + ":" + ImageTag,
-                        Name = ContainerName,
+                        Name = ContainerName + this.redisPort,
                         Tty = false,
                         HostConfig = hostConfig
                     });
-                    containerId = response.ID;
+                    this.containerId = response.ID;
 
                     System.Console.WriteLine("Starting container...");
 
-                    var started = await client.Containers.StartContainerAsync(containerId, new ContainerStartParameters());
+                    var started = await client.Containers.StartContainerAsync(this.containerId, new ContainerStartParameters());
                     if (!started)
                     {
                         Assert.False(true, "Cannot start the docker container");
@@ -112,7 +106,7 @@ namespace LoraKeysManagerFacade.Test
                 await this.StartRedisContainer();
             }
 
-            var redisConnectionString = "localhost:6379";
+            var redisConnectionString = $"localhost:{this.redisPort}";
             try
             {
                 this.redis = ConnectionMultiplexer.Connect(redisConnectionString);
@@ -126,26 +120,29 @@ namespace LoraKeysManagerFacade.Test
 
         public async Task DisposeAsync()
         {
-            // this.redis?.Dispose();
-            // this.redis = null;
-            await Task.FromResult(0);
-
-            /*
+            // wait for test locks to be released
+            await Task.Delay(11000);
             if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SYSTEM_DEFINITIONID")))
             {
-                // we are running locally
-                var dockerConnection = System.Environment.OSVersion.Platform.ToString().Contains("Win") ?
-                "npipe://./pipe/docker_engine" :
-                "unix:///var/run/docker.sock";
-                using (var conf = new DockerClientConfiguration(new Uri(dockerConnection))) // localhost
-                using (var client = conf.CreateClient())
+                if (!string.IsNullOrEmpty(this.containerId))
                 {
-                    await client.Containers.RemoveContainerAsync(containerId, new ContainerRemoveParameters()
+                    // we are running locally
+                    var dockerConnection = System.Environment.OSVersion.Platform.ToString().Contains("Win") ?
+                    "npipe://./pipe/docker_engine" :
+                    "unix:///var/run/docker.sock";
+                    using (var conf = new DockerClientConfiguration(new Uri(dockerConnection))) // localhost
+                    using (var client = conf.CreateClient())
                     {
-                        Force = true
-                    });
+                        await client.Containers.RemoveContainerAsync(this.containerId, new ContainerRemoveParameters()
+                        {
+                            Force = true
+                        });
+                    }
                 }
-            } */
+            }
+
+            this.redis?.Dispose();
+            this.redis = null;
         }
     }
 }
