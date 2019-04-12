@@ -101,7 +101,6 @@ namespace LoraKeysManagerFacade.Test
 
         public async Task InitializeAsync()
         {
-
             await this.StartRedisContainer();
 
             var redisConnectionString = $"localhost:{this.redisPort}";
