@@ -17,7 +17,7 @@ namespace LoraKeysManagerFacade.Test
     using Newtonsoft.Json;
     using Xunit;
 
-    public class DevAddrCacheTest : FunctionTestBase, IClassFixture<RedisContainerFixture>, IClassFixture<RedisFixture>
+    public class DevAddrCacheTest : FunctionTestBase, IClassFixture<RedisFixture>
     {
         private const string FullUpdateKey = "fullUpdateKey";
         private const string GlobalDevAddrUpdateKey = "globalUpdateKey";
@@ -25,12 +25,10 @@ namespace LoraKeysManagerFacade.Test
         private const string CacheKeyPrefix = "devAddrTable:";
 
         private const string PrimaryKey = "ABCDEFGH1234567890";
-        private readonly RedisContainerFixture redisContainer;
         private readonly ILoRaDeviceCacheStore cache;
 
-        public DevAddrCacheTest(RedisContainerFixture redisContainer, RedisFixture redis)
+        public DevAddrCacheTest(RedisFixture redis)
         {
-            this.redisContainer = redisContainer;
             this.cache = new LoRaDeviceCacheRedisStore(redis.Database);
         }
 
@@ -39,6 +37,8 @@ namespace LoraKeysManagerFacade.Test
             List<DevAddrCacheInfo> currentDevAddrContext = new List<DevAddrCacheInfo>();
             List<DevAddrCacheInfo> currentDevices = deviceIds;
             var mockRegistryManager = new Mock<RegistryManager>(MockBehavior.Strict);
+            bool hasMoreShouldReturn = true;
+
             var primaryKey = Convert.ToBase64String(Encoding.UTF8.GetBytes(PrimaryKey));
             mockRegistryManager
                 .Setup(x => x.GetDeviceAsync(It.IsAny<string>()))
@@ -49,7 +49,6 @@ namespace LoraKeysManagerFacade.Test
                 .ReturnsAsync((string deviceId) => new Twin(deviceId));
 
             int numberOfDevices = deviceIds.Count;
-            int deviceCount = 0;
 
             // CacheMiss query
             var cacheMissQueryMock = new Mock<IQuery>(MockBehavior.Strict);
@@ -59,7 +58,13 @@ namespace LoraKeysManagerFacade.Test
                 .Setup(x => x.HasMoreResults)
                 .Returns(() =>
                 {
-                    return deviceCount++ < 1;
+                    if (hasMoreShouldReturn)
+                    {
+                        hasMoreShouldReturn = false;
+                        return true;
+                    }
+
+                    return false;
                 });
 
             cacheMissQueryMock
@@ -86,6 +91,7 @@ namespace LoraKeysManagerFacade.Test
                 .Setup(x => x.CreateQuery(It.Is<string>(z => z.Contains("SELECT * FROM devices WHERE properties.desired.DevAddr =")), 100))
                 .Returns((string query, int pageSize) =>
                 {
+                    hasMoreShouldReturn = true;
                     currentDevAddrContext = currentDevices.Where(v => v.DevAddr == query.Split('\'')[1]).ToList();
                     return cacheMissQueryMock.Object;
                 });
@@ -94,6 +100,7 @@ namespace LoraKeysManagerFacade.Test
                 .Setup(x => x.CreateQuery(It.Is<string>(z => z.Contains("SELECT * FROM devices WHERE is_defined(properties.desired.AppKey) "))))
                 .Returns((string query) =>
                 {
+                    hasMoreShouldReturn = true;
                     currentDevAddrContext = currentDevices;
                     return cacheMissQueryMock.Object;
                 });
@@ -104,7 +111,7 @@ namespace LoraKeysManagerFacade.Test
                 {
                     currentDevAddrContext = currentDevices.Take(numberOfDeviceDeltaUpdates).ToList();
                     // reset device count in case HasMoreResult is called more than once
-                    deviceCount = 0;
+                    hasMoreShouldReturn = true;
                     return cacheMissQueryMock.Object;
                 });
             return mockRegistryManager;
@@ -115,7 +122,7 @@ namespace LoraKeysManagerFacade.Test
             var loradevaddrcache = new LoRaDevAddrCache(cache, null);
             foreach (var device in deviceIds)
             {
-                loradevaddrcache.StoreInfo(device, cacheKey: device.DevAddr);
+                loradevaddrcache.StoreInfo(device, customCacheKey: device.DevAddr);
             }
         }
 
@@ -372,6 +379,11 @@ namespace LoraKeysManagerFacade.Test
 
             LoRaDevAddrCache devAddrCache = new LoRaDevAddrCache(this.cache, null);
             await devAddrCache.PerformNeededSyncs(registryManagerMock.Object);
+
+            while (!string.IsNullOrEmpty(this.cache.StringGet(GlobalDevAddrUpdateKey)))
+            {
+                await Task.Delay(100);
+            }
 
             var foundItem = 0;
             // we expect the devices are saved

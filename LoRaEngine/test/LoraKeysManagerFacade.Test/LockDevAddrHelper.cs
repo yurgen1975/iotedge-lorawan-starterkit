@@ -8,7 +8,9 @@ namespace LoraKeysManagerFacade.Test
 
     static class LockDevAddrHelper
     {
+        private const string FullUpdateKey = "fullUpdateKey";
         private const string GlobalDevAddrUpdateKey = "globalUpdateKey";
+        private const string DeltaUpdateKey = "deltaUpdateKey";
 
         public static async Task TakeLocksAsync(ILoRaDeviceCacheStore loRaDeviceCache, string[] lockNames)
         {
@@ -21,20 +23,16 @@ namespace LoraKeysManagerFacade.Test
             }
         }
 
-        public static void ReleaseLocks(ILoRaDeviceCacheStore loRaDeviceCache, string[] lockNames)
+        public static void ReleaseAllLocks(ILoRaDeviceCacheStore loRaDeviceCache)
         {
-            if (lockNames?.Length > 0)
-            {
-                foreach (var locks in lockNames)
-                {
-                    loRaDeviceCache.LockRelease(locks, locks);
-                }
-            }
+            loRaDeviceCache.KeyDelete(GlobalDevAddrUpdateKey);
+            loRaDeviceCache.KeyDelete(FullUpdateKey);
+            loRaDeviceCache.KeyDelete(DeltaUpdateKey);
         }
 
         public static async Task PrepareLocksForTests(ILoRaDeviceCacheStore loRaDeviceCache, string[] neededLocksForTestToRun, string[] locksGuideTest)
         {
-            LockDevAddrHelper.ReleaseLocks(loRaDeviceCache, neededLocksForTestToRun);
+            LockDevAddrHelper.ReleaseAllLocks(loRaDeviceCache);
             await LockDevAddrHelper.TakeLocksAsync(loRaDeviceCache, locksGuideTest);
         }
     }

@@ -89,25 +89,23 @@ namespace LoraKeysManagerFacade
             return info.Count > 0;
         }
 
-        public bool StoreInfo(DevAddrCacheInfo info, bool initialize = false, string cacheKey = "")
+        public bool StoreInfo(DevAddrCacheInfo info, bool initialize = false, string customCacheKey = "")
         {
             bool success = false;
             this.devEUI = info.DevEUI;
             var hashValue = JsonConvert.SerializeObject(info);
-            if (string.IsNullOrEmpty(cacheKey))
-            {
-                success = this.cacheStore.TrySetHashObject(this.cacheKey, info.DevEUI, hashValue);
-            }
 
-            success = this.cacheStore.TrySetHashObject(GenerateKey(cacheKey), info.DevEUI, hashValue);
+            string cacheKeyToUse = string.IsNullOrEmpty(customCacheKey) ? this.cacheKey : GenerateKey(info.DevAddr);
+
+            success = this.cacheStore.TrySetHashObject(cacheKeyToUse, info.DevEUI, hashValue);
 
             if (success)
             {
-                this.logger.LogInformation($"Successfully saved dev address info on dictionary key: {this.cacheKey}, hashkey: {info.DevEUI}, object: {hashValue}");
+                this.logger.LogInformation($"Successfully saved dev address info on dictionary key: {cacheKeyToUse}, hashkey: {info.DevEUI}, object: {hashValue}");
             }
             else
             {
-               this.logger.LogError($"failure to save dev address info on dictionary key: {this.cacheKey}, hashkey: {info?.DevEUI}, object: {hashValue}");
+               this.logger.LogError($"failure to save dev address info on dictionary key: {cacheKeyToUse}, hashkey: {info?.DevEUI}, object: {hashValue}");
             }
 
             return success;
