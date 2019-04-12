@@ -58,6 +58,7 @@ namespace LoraKeysManagerFacade.Test
                         Hostname = "localhost"
                     };
                     this.redisPort = Interlocked.Increment(ref uniqueRedisPort);
+                    System.Console.WriteLine(this.redisPort);
 
                     // Configure the ports to expose
                     var hostConfig = new HostConfig()
@@ -100,11 +101,8 @@ namespace LoraKeysManagerFacade.Test
 
         public async Task InitializeAsync()
         {
-            // In this case we run locally
-            if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("SYSTEM_DEFINITIONID")))
-            {
-                await this.StartRedisContainer();
-            }
+
+            await this.StartRedisContainer();
 
             var redisConnectionString = $"localhost:{this.redisPort}";
             try
