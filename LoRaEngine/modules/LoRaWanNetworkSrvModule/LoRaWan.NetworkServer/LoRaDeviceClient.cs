@@ -6,6 +6,7 @@ namespace LoRaWan.NetworkServer
     using System;
     using System.Collections.Generic;
     using System.Text;
+    using System.Threading;
     using System.Threading.Tasks;
     using Microsoft.Azure.Devices.Client;
     using Microsoft.Azure.Devices.Shared;
@@ -161,23 +162,28 @@ namespace LoRaWan.NetworkServer
             {
                 // Set the operation timeout to accepted timeout plus one second
                 // Should not return an operation timeout since we wait less that it
-                this.deviceClient.OperationTimeoutInMilliseconds = (uint)(timeout.TotalMilliseconds + 1000);
 
-                this.SetRetry(true);
-
-                Logger.Log(this.devEUI, $"checking cloud to device message for {timeout}", LogLevel.Debug);
-
-                Message msg = await this.deviceClient.ReceiveAsync(timeout);
-
-                if (Logger.LoggerLevel >= LogLevel.Debug)
+                // Microsoft.Azure.Devices SDK 1.20.1 C2D Timeout Fix Saschac
+                using (CancellationTokenSource cts = new CancellationTokenSource(timeout))
                 {
-                    if (msg == null)
-                        Logger.Log(this.devEUI, "done checking cloud to device message, found no message", LogLevel.Debug);
-                    else
-                        Logger.Log(this.devEUI, $"done checking cloud to device message, found message id: {msg.MessageId ?? "undefined"}", LogLevel.Debug);
-                }
+                    this.deviceClient.OperationTimeoutInMilliseconds = (uint)(timeout.TotalMilliseconds + 1000);
 
-                return msg;
+                    this.SetRetry(true);
+
+                    Logger.Log(this.devEUI, $"checking cloud to device message for {timeout}", LogLevel.Debug);
+
+                    Message msg = await this.deviceClient.ReceiveAsync(cts.Token);
+
+                    if (Logger.LoggerLevel >= LogLevel.Debug)
+                    {
+                        if (msg == null)
+                            Logger.Log(this.devEUI, "done checking cloud to device message, found no message", LogLevel.Debug);
+                        else
+                            Logger.Log(this.devEUI, $"done checking cloud to device message, found message id: {msg.MessageId ?? "undefined"}", LogLevel.Debug);
+                    }
+
+                    return msg;
+                }
             }
             catch (Exception ex)
             {
