@@ -14,6 +14,9 @@ namespace LoRaWan.NetworkServer
         // Gets/sets if the server is running as an IoT Edge module
         public bool RunningAsIoTEdgeModule { get; set; }
 
+        // Gets/sets if the server is forced to run outside of an IoT Edge module
+        public bool ForceRunOutsideEdge { get; set; }
+
         // Gets/sets the iot hub host name
         public string IoTHubHostName { get; set; }
 
@@ -89,6 +92,7 @@ namespace LoRaWan.NetworkServer
             var envVars = new CaseInsensitiveEnvironmentVariables(Environment.GetEnvironmentVariables());
 
             config.RunningAsIoTEdgeModule = !string.IsNullOrEmpty(envVars.GetEnvVar("IOTEDGE_APIVERSION", string.Empty));
+            config.ForceRunOutsideEdge = !string.IsNullOrEmpty(envVars.GetEnvVar("IOTEDGE_DISABLE", string.Empty));
             config.IoTHubHostName = envVars.GetEnvVar("IOTEDGE_IOTHUBHOSTNAME", string.Empty);
             config.GatewayHostName = envVars.GetEnvVar("IOTEDGE_GATEWAYHOSTNAME", string.Empty);
             config.EnableGateway = envVars.GetEnvVar("ENABLE_GATEWAY", config.EnableGateway);

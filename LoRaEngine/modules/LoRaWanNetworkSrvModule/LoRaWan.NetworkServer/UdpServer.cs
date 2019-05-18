@@ -214,8 +214,8 @@ namespace LoRaWan.NetworkServer
 
                 ITransportSettings[] settings = { transportSettings };
 
-                // if running as Edge module
-                if (this.configuration.RunningAsIoTEdgeModule)
+                // if running as Edge module and not forced to run outside edge
+                if (this.configuration.RunningAsIoTEdgeModule && !this.configuration.ForceRunOutsideEdge)
                 {
                     this.ioTHubModuleClient = await ModuleClient.CreateFromEnvironmentAsync(settings);
 
