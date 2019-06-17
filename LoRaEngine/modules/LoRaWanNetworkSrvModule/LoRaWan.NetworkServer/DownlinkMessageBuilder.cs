@@ -245,20 +245,21 @@ namespace LoRaWan.NetworkServer
             double freq;
             var tmst = 0; // immediate mode
 
-            if (string.IsNullOrEmpty(configuration.Rx2DataRate))
-            {
-                Logger.Log(loRaDevice.DevEUI, $"using standard second receive window", LogLevel.Debug);
-                freq = loRaRegion.RX2DefaultReceiveWindows.frequency;
-                datr = loRaRegion.DRtoConfiguration[loRaRegion.RX2DefaultReceiveWindows.dr].configuration;
-            }
+            // if (string.IsNullOrEmpty(configuration.Rx2DataRate))
+            // {
+            //    Logger.Log(loRaDevice.DevEUI, $"using standard second receive window", LogLevel.Debug);
+            //    freq = loRaRegion.RX2DefaultReceiveWindows.frequency;
+            //    datr = loRaRegion.DRtoConfiguration[loRaRegion.RX2DefaultReceiveWindows.dr].configuration;
+            // }
 
-            // if specific twins are set, specify second channel to be as specified
-            else
-            {
-                freq = configuration.Rx2DataFrequency;
-                datr = configuration.Rx2DataRate;
-                Logger.Log(loRaDevice.DevEUI, $"using custom DR second receive window freq : {freq}, datr:{datr}", LogLevel.Debug);
-            }
+            //// if specific twins are set, specify second channel to be as specified
+            // else
+            // {
+            //    freq = configuration.Rx2DataFrequency;
+            //    datr = configuration.Rx2DataRate;
+            //    Logger.Log(loRaDevice.DevEUI, $"using custom DR second receive window freq : {freq}, datr:{datr}", LogLevel.Debug);
+            // }
+            (freq, datr) = loRaRegion.GetDownstreamRX2DRAndFreq(loRaDevice.DevEUI, configuration.Rx2DataRate, configuration.Rx2DataFrequency, loRaDevice.ReportedRX2DataRate);
 
             // get max. payload size based on data rate from LoRaRegion
             var maxPayloadSize = loRaRegion.GetMaxPayloadSize(datr);

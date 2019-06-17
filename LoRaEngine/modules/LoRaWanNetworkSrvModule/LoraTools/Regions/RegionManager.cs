@@ -213,6 +213,9 @@ namespace LoRaTools.Regions
                 "SF8BW125", // 2
                 "SF7BW125", // 3
                 "SF8BW500", // 4
+                string.Empty,
+                string.Empty,
+                string.Empty,
                 "SF12BW500", // 8
                 "SF11BW500", // 9
                 "SF10BW500", // 10
