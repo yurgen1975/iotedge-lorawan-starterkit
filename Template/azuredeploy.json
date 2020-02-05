@@ -20,12 +20,6 @@
                 "description": "Provision a final LoRa device in the IoT hub in addition to the gateway"
             }
         },
-        "resetPin": {
-            "type": "int",
-            "metadata": {
-                "description": "Provide the reset pin value of your gateway. Please refer to the doc if you are unfamiliar with the value"
-            }
-        },
         "region": {
             "type": "string",
             "allowedValues": [
