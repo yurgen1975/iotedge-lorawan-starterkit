@@ -36,28 +36,6 @@
             "metadata": {
                 "description": "In what region is your gateway deployed?"
             }
-        },
-        "spiSpeed": {
-            "type": "int",
-            "allowedValues": [
-                8,
-                2
-            ],
-            "defaultValue": 8,
-            "metadata": {
-                "description": "[In Mbps] Custom SPI speed for your gateway, currently only supported for ARM gateways"
-            }
-        },
-        "spiDev": {
-            "type": "int",
-            "allowedValues": [
-                1,
-                2
-            ],
-            "defaultValue": 2,
-            "metadata": {
-                "description": "SPI Dev version for x86 based gateway"
-            }
         }
     },
     "variables": {
@@ -216,12 +194,6 @@
                     },
                     "resetPin": {
                         "value": "[parameters('resetPin')]"
-                    },
-                    "spiDev": {
-                        "value": "[parameters('spiDev')]"
-                    },
-                    "spiSpeed": {
-                        "value": "[parameters('spiSpeed')]"
                     }
                 }
             }
