@@ -60,26 +60,6 @@
 						},
 						"status": "running",
 						"restartPolicy": "always"
-					},
-					"LoRaWanPktFwdModule": {
-						"type": "docker",
-						"settings": {
-							"image": "loraedge/lorawanpktfwdmodule:1.0.2",
-							"createOptions": "  {\"HostConfig\": {\"NetworkMode\": \"host\", \"Privileged\": true },  \"NetworkingConfig\": {\"EndpointsConfig\": {\"host\": {} }}}"
-						},
-						"env": {
-							"RESET_PIN": {
-							  "value": "[$reset_pin]"
-							},
-							"REGION": {
-							  "value": "[$region]"
-							}
-							[$spi_dev]
-							[$spi_speed]
-						  },
-						"version": "1.0",
-						"status": "running",
-						"restartPolicy": "always"
 					}
 				}
 			}
