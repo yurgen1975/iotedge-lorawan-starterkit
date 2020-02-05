@@ -170,35 +170,6 @@
             }
         },
         {
-            "name": "functionLauncher",
-            "type": "Microsoft.Resources/deployments",
-            "apiVersion": "2015-01-01",
-            "dependsOn": [
-                "[resourceId('Microsoft.Web/sites', variables('functionAppName'))]"
-            ],
-            "properties": {
-                "mode": "Incremental",
-                "templateLink": {
-                    "uri": "[concat('https://raw.githubusercontent.com/',variables('gitUsername'),'/iotedge-lorawan-starterkit/',variables('gitBranch'),'/Template/createEdgeDevice.json')]",
-                    "contentVersion": "1.0.0.0"
-                },
-                "parameters": {
-                    "solutionPrefix": {
-                        "value": "[parameters('uniqueSolutionPrefix')]"
-                    },
-                    "edgeGatewayName": {
-                        "value": "[parameters('edgeGatewayName')]"
-                    },
-                    "region": {
-                        "value": "[parameters('region')]"
-                    },
-                    "resetPin": {
-                        "value": "[parameters('resetPin')]"
-                    }
-                }
-            }
-        },
-        {
             "type": "Microsoft.Insights/components",
             "kind": "web",
             "name": "[variables('appInsightName')]",
